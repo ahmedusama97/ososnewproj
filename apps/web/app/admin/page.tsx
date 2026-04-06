@@ -158,6 +158,7 @@ export default function AdminPage() {
   const [addingCountry, setAddingCountry] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(
     readStoredNotifications,
   );
@@ -551,6 +552,7 @@ export default function AdminPage() {
     setSelectedReference(referenceCode);
     setActiveTab("requests");
     setShowNotifications(false);
+    setIsMobileNavOpen(false);
   }
 
   function handleLogout() {
@@ -560,8 +562,21 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#fafafa] text-[#1f1b16]" dir="rtl">
-      <aside className="fixed right-0 top-0 z-40 flex h-screen w-64 flex-col border-l border-[#d5c3b5] bg-white p-4">
+    <div className="min-h-screen bg-[#fafafa] text-[#1f1b16]" dir="rtl">
+      {isMobileNavOpen ? (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setIsMobileNavOpen(false)}
+        />
+      ) : null}
+
+      <aside
+        className={`fixed inset-y-0 right-0 z-40 flex w-[18.5rem] flex-col border-l border-[#d5c3b5] bg-white p-4 transition-transform duration-300 md:w-64 ${
+          isMobileNavOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
+        }`}
+      >
         <div className="mb-8 px-4 py-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7e5700] text-white shadow-lg shadow-[#7e5700]/20">
@@ -583,7 +598,10 @@ export default function AdminPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setIsMobileNavOpen(false);
+              }}
               className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right transition ${
                 activeTab === tab.id
                   ? "bg-[#ffdeab] text-[#412100]"
@@ -612,14 +630,28 @@ export default function AdminPage() {
         </div>
       </aside>
 
-      <main className="mr-64 flex h-screen flex-col overflow-hidden">
-        <header className="z-30 flex items-center justify-between border-b border-[#d5c3b5] bg-white px-8 py-4">
-          <div className="flex items-center gap-8">
+      <main className="min-h-screen md:mr-64">
+        <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-[#d5c3b5] bg-white px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
+          <div className="flex items-center gap-3 md:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMobileNavOpen(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d5c3b5] text-[#7e5700]"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div>
+              <h2 className="text-lg font-black text-[#7e5700]">لوحة الإدارة</h2>
+              <p className="text-[11px] font-medium text-[#837567]">VisaFlow Admin</p>
+            </div>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-4 md:flex-row md:items-center md:gap-8">
             <div>
               <h2 className="text-xl font-black text-[#7e5700]">لوحة الإدارة</h2>
               <p className="text-xs font-medium text-[#837567]">إدارة الطلبات والتحليلات والعمليات اليومية</p>
             </div>
-            <div className="relative w-[22rem]">
+            <div className="relative w-full md:w-[22rem]">
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#837567]">search</span>
               <input
                 className="w-full rounded-xl border-none bg-[#f1edea] py-2.5 pr-10 pl-4 text-sm outline-none ring-0 placeholder:text-[#837567] focus:ring-2 focus:ring-[#c26d00]/20"
@@ -630,7 +662,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 md:gap-4">
             <button type="button" onClick={() => { void loadRequests(); void loadCountries(); }} className="rounded-lg border border-[#d5c3b5] px-4 py-2 text-sm font-bold text-[#7e5700] transition hover:bg-[#f7f3f0]">
               تحديث
             </button>
@@ -646,7 +678,7 @@ export default function AdminPage() {
               </button>
 
               {showNotifications ? (
-                <div className="absolute left-0 top-12 z-50 w-80 rounded-2xl border border-[#d5c3b5] bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+                <div className="absolute left-0 top-12 z-50 w-[18rem] max-w-[85vw] rounded-2xl border border-[#d5c3b5] bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.12)] md:w-80">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-black text-[#412100]">الإشعارات</h3>
                     <span className="text-xs font-medium text-[#837567]">{notifications.length} عنصر</span>
@@ -675,7 +707,7 @@ export default function AdminPage() {
               ) : null}
             </div>
 
-            <div className="h-8 w-px bg-[#d5c3b5]" />
+            <div className="hidden h-8 w-px bg-[#d5c3b5] md:block" />
 
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fef3e2] text-[#7e5700] ring-2 ring-[#fef3e2]">
@@ -686,13 +718,13 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <section className="flex-1 overflow-hidden bg-[#f7f3f0] p-6">
+        <section className="bg-[#f7f3f0] p-4 md:min-h-[calc(100vh-89px)] md:p-6">
           {error ? <div className="mb-4 rounded-2xl border border-[#ffdad6] bg-[#fff0ef] px-5 py-4 font-semibold text-[#ba1a1a]">{error}</div> : null}
           {success ? <div className="mb-4 rounded-2xl border border-[#d6efcf] bg-[#eef9ea] px-5 py-4 font-semibold text-[#126c39]">{success}</div> : null}
 
           {activeTab === "requests" ? (
-            <div className="flex h-full gap-6 overflow-hidden">
-              <section className="flex w-[24rem] flex-col overflow-hidden rounded-[24px] border border-[#d5c3b5] bg-white">
+            <div className="flex flex-col gap-6 xl:flex-row">
+              <section className="flex max-h-[32rem] w-full flex-col overflow-hidden rounded-[24px] border border-[#d5c3b5] bg-white xl:max-h-none xl:w-[24rem]">
                 <div className="flex items-center justify-between border-b border-[#d5c3b5] p-5">
                   <div>
                     <h3 className="text-lg font-black text-[#1f1b16]">قائمة المراجعة</h3>
@@ -741,11 +773,11 @@ export default function AdminPage() {
                 </div>
               </section>
 
-              <section className="flex-1 overflow-y-auto rounded-[24px] border border-[#d5c3b5] bg-white">
+              <section className="min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-[#d5c3b5] bg-white">
                 {selectedRequest ? (
                   <>
                     <div className="border-b border-[#d5c3b5] p-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-4">
                           <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-[#d5c3b5] bg-[#f7f3f0] text-3xl">
                             <span>{selectedRequest.requestContext?.deviceType === "mobile" ? "📱" : "🖥️"}</span>
@@ -758,7 +790,7 @@ export default function AdminPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -881,7 +913,7 @@ export default function AdminPage() {
               </section>
             </div>
           ) : activeTab === "countries" ? (
-            <div className="grid h-full gap-6 md:grid-cols-[22rem_1fr]">
+            <div className="grid gap-6 xl:grid-cols-[22rem_1fr]">
               <section className="rounded-[24px] border border-[#d5c3b5] bg-white p-6">
                 <div className="mb-5">
                   <p className="text-xs font-black uppercase tracking-[0.28em] text-[#c26d00]">Countries</p>
@@ -937,7 +969,7 @@ export default function AdminPage() {
               </section>
             </div>
           ) : activeTab === "security" ? (
-            <div className="grid h-full gap-6 md:grid-cols-[22rem_1fr]">
+            <div className="grid gap-6 xl:grid-cols-[22rem_1fr]">
               <section className="rounded-[24px] border border-[#d5c3b5] bg-white p-6">
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-[#c26d00]">Security</p>
                 <h3 className="mt-2 text-2xl font-black text-[#1f1b16]">تغيير كلمة المرور</h3>
