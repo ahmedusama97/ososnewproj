@@ -28,6 +28,10 @@ function createDefaultSettings(): AuthSettings {
 }
 
 function loadSettings() {
+  if (process.env.VERCEL) {
+    return createDefaultSettings();
+  }
+
   const stored = readJsonFile<AuthSettings | null>(STORAGE_KEY, null);
   if (stored) {
     return stored;
@@ -83,6 +87,10 @@ export function changeAdminPassword(
   currentPassword: string,
   newPassword: string,
 ) {
+  if (process.env.VERCEL) {
+    return { type: "unsupported" as const };
+  }
+
   const settings = loadSettings();
   const token = authorization?.startsWith("Bearer ")
     ? authorization.slice(7)

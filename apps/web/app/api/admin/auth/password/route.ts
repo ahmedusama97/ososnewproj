@@ -33,6 +33,16 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  if (result.type === "unsupported") {
+    return NextResponse.json(
+      {
+        message:
+          "Password changes are disabled on the hosted demo until persistent storage is added.",
+      },
+      { status: 501 },
+    );
+  }
+
   return NextResponse.json({
     token: result.token,
     username: result.username,
