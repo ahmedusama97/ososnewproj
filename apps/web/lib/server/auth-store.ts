@@ -10,12 +10,15 @@ type AuthSettings = {
 const STORAGE_KEY = "admin-auth.json";
 const DEFAULT_USERNAME = "admin";
 const DEFAULT_PASSWORD = "admin123";
+const DEFAULT_SALT = "2ff7325e22e05c9d71b4bdddfd986c59";
+const DEFAULT_PASSWORD_HASH =
+  "d65cf595b881d96add3d34b28f1ad17c61f578470aed7b11ebcefd8f894bb4d457d8794866268197fbdc405a6f04d789cadfc6e5155b60b8448a4981285abc2f";
 
 function createDefaultSettings(): AuthSettings {
-  const salt = process.env.ADMIN_PASSWORD_SALT ?? randomBytes(16).toString("hex");
+  const salt = process.env.ADMIN_PASSWORD_SALT ?? DEFAULT_SALT;
   const passwordHash =
     process.env.ADMIN_PASSWORD_HASH ??
-    scryptSync(DEFAULT_PASSWORD, salt, 64).toString("hex");
+    DEFAULT_PASSWORD_HASH;
 
   return {
     username: process.env.ADMIN_USERNAME ?? DEFAULT_USERNAME,
