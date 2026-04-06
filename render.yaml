@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: visaflow-api
+    runtime: node
+    rootDir: apps/api
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      - key: ADMIN_PASSWORD_SALT
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+
+  - type: web
+    name: visaflow-web
+    runtime: node
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false

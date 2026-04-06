@@ -1,0 +1,92 @@
+[
+  {
+    "id": "6604c6e9-f772-4ec4-b79f-23cb8e86013d",
+    "code": "riva",
+    "nameAr": "Q",
+    "nameEn": "R",
+    "flag": "🌍RIV",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#964900] via-[#ffb787] to-[#126c39]",
+    "createdAt": "2026-04-03T13:53:26.569Z"
+  },
+  {
+    "id": "fr",
+    "code": "fr",
+    "nameAr": "فرنسا",
+    "nameEn": "France",
+    "flag": "🇫🇷",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#213f8f] via-white to-[#d42028]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "us",
+    "code": "us",
+    "nameAr": "أمريكا",
+    "nameEn": "United States",
+    "flag": "🇺🇸",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#123c7d] via-white to-[#c62839]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "gb",
+    "code": "gb",
+    "nameAr": "بريطانيا",
+    "nameEn": "United Kingdom",
+    "flag": "🇬🇧",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#1a3b8f] via-white to-[#cf2d37]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "de",
+    "code": "de",
+    "nameAr": "ألمانيا",
+    "nameEn": "Germany",
+    "flag": "🇩🇪",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-black via-[#d52b1e] to-[#ffce00]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "it",
+    "code": "it",
+    "nameAr": "إيطاليا",
+    "nameEn": "Italy",
+    "flag": "🇮🇹",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#009246] via-white to-[#ce2b37]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "es",
+    "code": "es",
+    "nameAr": "إسبانيا",
+    "nameEn": "Spain",
+    "flag": "🇪🇸",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#aa151b] via-[#f1bf00] to-[#aa151b]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "jp",
+    "code": "jp",
+    "nameAr": "اليابان",
+    "nameEn": "Japan",
+    "flag": "🇯🇵",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-white via-[#f5f2f2] to-[#bc002d]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  },
+  {
+    "id": "ch",
+    "code": "ch",
+    "nameAr": "سويسرا",
+    "nameEn": "Switzerland",
+    "flag": "🇨🇭",
+    "visaType": "تأشيرة سياحية",
+    "accent": "from-[#d52b1e] via-[#ef3b2d] to-[#d52b1e]",
+    "createdAt": "2026-04-03T13:52:23.561Z"
+  }
+]
