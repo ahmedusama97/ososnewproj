@@ -3,11 +3,6 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": ".",
-  "functions": {
-    "api/index.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "routes": [
     {
       "src": "/api/(.*)",
