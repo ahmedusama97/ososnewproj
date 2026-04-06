@@ -1,11 +1,10 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { readJsonFile, writeJsonFile } from "./storage";
 
 type AuthSettings = {
   username: string;
   passwordHash: string;
   salt: string;
-  token: string;
 };
 
 const STORAGE_KEY = "admin-auth.json";
@@ -22,7 +21,6 @@ function createDefaultSettings(): AuthSettings {
     username: process.env.ADMIN_USERNAME ?? DEFAULT_USERNAME,
     passwordHash,
     salt,
-    token: process.env.ADMIN_TOKEN ?? randomBytes(24).toString("hex"),
   };
 }
 
@@ -48,6 +46,14 @@ function verifyPassword(password: string, settings: AuthSettings) {
   return timingSafeEqual(candidate, stored);
 }
 
+function createSessionToken(settings: AuthSettings) {
+  const seed =
+    process.env.ADMIN_TOKEN ??
+    `${settings.username}:${settings.passwordHash}:${settings.salt}`;
+
+  return createHash("sha256").update(seed).digest("hex");
+}
+
 export function loginAdmin(username: string, password: string) {
   const settings = loadSettings();
   if (username !== settings.username || !verifyPassword(password, settings)) {
@@ -55,7 +61,7 @@ export function loginAdmin(username: string, password: string) {
   }
 
   return {
-    token: settings.token,
+    token: createSessionToken(settings),
     username: settings.username,
   };
 }
@@ -66,7 +72,7 @@ export function assertAdminToken(authorization?: string | null) {
     ? authorization.slice(7)
     : authorization ?? "";
 
-  return token === settings.token;
+  return token === createSessionToken(settings);
 }
 
 export function changeAdminPassword(
@@ -79,7 +85,7 @@ export function changeAdminPassword(
     ? authorization.slice(7)
     : authorization ?? "";
 
-  if (token !== settings.token) {
+  if (token !== createSessionToken(settings)) {
     return { type: "unauthorized" as const };
   }
 
@@ -97,14 +103,13 @@ export function changeAdminPassword(
     ...settings,
     salt,
     passwordHash,
-    token: randomBytes(24).toString("hex"),
   };
 
   writeJsonFile(STORAGE_KEY, nextSettings);
 
   return {
     type: "success" as const,
-    token: nextSettings.token,
+    token: createSessionToken(nextSettings),
     username: nextSettings.username,
   };
 }
