@@ -1,6 +1,7 @@
 ﻿import { Injectable } from "@nestjs/common";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+import { resolveStoragePath } from "../../shared/storage-path";
 
 export type CountryRecord = {
   id: string;
@@ -28,7 +29,7 @@ const defaultCountries: CountryRecord[] = [
 
 @Injectable()
 export class CountriesService {
-  private readonly storagePath = join(process.cwd(), "data", "countries.json");
+  private readonly storagePath = resolveStoragePath("countries.json");
   private readonly countries: CountryRecord[] = this.loadCountries();
 
   list() {

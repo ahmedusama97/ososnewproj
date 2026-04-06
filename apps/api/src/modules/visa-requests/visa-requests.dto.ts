@@ -1,4 +1,4 @@
-import { Type } from "class-transformer";
+﻿import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -99,7 +99,7 @@ export class CreateVisaRequestDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(6)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => VisaApplicantDto)
   applicants!: VisaApplicantDto[];

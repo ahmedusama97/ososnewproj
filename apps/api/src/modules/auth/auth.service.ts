@@ -4,8 +4,9 @@
   UnauthorizedException,
 } from "@nestjs/common";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { resolveStoragePath } from "../../shared/storage-path";
 
 type AuthSettings = {
   username: string;
@@ -18,7 +19,7 @@ const DEFAULT_PASSWORD = "admin123";
 
 @Injectable()
 export class AuthService {
-  private readonly storagePath = join(process.cwd(), "data", "admin-auth.json");
+  private readonly storagePath = resolveStoragePath("admin-auth.json");
   private readonly settings: AuthSettings = this.loadSettings();
   private currentToken =
     process.env.ADMIN_TOKEN ?? randomBytes(24).toString("hex");

@@ -1,11 +1,12 @@
-import { Injectable } from "@nestjs/common";
+﻿import { Injectable } from "@nestjs/common";
 import {
   CreateVisaRequestDto,
   RequestContextDto,
   VisaApplicantDto,
 } from "./visa-requests.dto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+import { resolveStoragePath } from "../../shared/storage-path";
 
 export type VisaRequestRecord = CreateVisaRequestDto & {
   id: string;
@@ -21,7 +22,7 @@ export type VisaRequestRecord = CreateVisaRequestDto & {
 
 @Injectable()
 export class VisaRequestsService {
-  private readonly storagePath = join(process.cwd(), "data", "visa-requests.json");
+  private readonly storagePath = resolveStoragePath("visa-requests.json");
   private readonly requests: VisaRequestRecord[] = this.loadRequests();
 
   list() {
