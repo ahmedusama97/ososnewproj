@@ -6,18 +6,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  if (!assertAdminToken(request.headers.get("authorization"))) {
+  if (!(await assertAdminToken(request.headers.get("authorization")))) {
     return NextResponse.json(
       { message: "Unauthorized admin request." },
       { status: 401 },
     );
   }
 
-  return NextResponse.json(listCountries());
+  return NextResponse.json(await listCountries());
 }
 
 export async function POST(request: NextRequest) {
-  if (!assertAdminToken(request.headers.get("authorization"))) {
+  if (!(await assertAdminToken(request.headers.get("authorization")))) {
     return NextResponse.json(
       { message: "Unauthorized admin request." },
       { status: 401 },
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const country = createCountry({
+  const country = await createCountry({
     code: payload.code ? String(payload.code) : undefined,
     nameAr: String(payload.nameAr),
     nameEn: String(payload.nameEn),

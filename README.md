@@ -2,9 +2,9 @@
 
 Current stack:
 
-- `apps/web`: Next.js + Tailwind
-- `apps/api`: NestJS
-- `packages/database`: PostgreSQL schema draft
+- `apps/web`: Next.js + Tailwind + Route Handlers
+- `apps/api`: legacy NestJS API kept for compatibility work
+- `packages/database`: Prisma + PostgreSQL
 
 ## Run
 
@@ -28,39 +28,42 @@ npm run build:web
 npm run build:api
 ```
 
-## Deploy On Render
+## Database
 
-This repo is prepared for Render using [render.yaml](/C:/product2/render.yaml).
+The web app is now prepared to use PostgreSQL through Prisma.
 
-Services:
+If `DATABASE_URL` is not set, the app falls back to the current local JSON storage.
+If `DATABASE_URL` is set, the web API routes automatically switch to Prisma-backed repositories for:
 
-- `visaflow-api` from [apps/api](/C:/product2/apps/api)
-- `visaflow-web` from [apps/web](/C:/product2/apps/web)
+- visa requests
+- countries
+- admin credentials
 
-Important notes:
+### Database commands
 
-- Local development is unchanged. The API still uses port `4000` locally and automatically uses `PORT` on Render.
-- For online testing, set `NEXT_PUBLIC_API_BASE_URL` on the web service to your Render API URL, for example:
-  `https://visaflow-api.onrender.com`
-- The current API stores data in local JSON files. On free hosting this storage is not durable, so data may reset after restart or redeploy.
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:deploy
+npm run db:studio
+npm run db:seed
+```
 
-### Render Setup
+### Recommended production setup
 
-1. Push this repo to GitHub.
-2. In Render choose `Blueprint` and connect the repo.
-3. Render will detect [render.yaml](/C:/product2/render.yaml) and create both services.
-4. In `visaflow-api` add these environment variables:
-   - `ADMIN_USERNAME`
-   - `ADMIN_PASSWORD_HASH`
-   - `ADMIN_PASSWORD_SALT`
-   - `ADMIN_TOKEN`
-5. After the API gets its public URL, open `visaflow-web` environment variables and set:
-   - `NEXT_PUBLIC_API_BASE_URL=https://your-api-name.onrender.com`
-6. Redeploy the web service once after setting the API URL.
+1. Create a PostgreSQL database on Neon, Supabase, Railway, or Vercel Postgres.
+2. Add `DATABASE_URL` to the web app environment.
+3. Run:
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+4. Redeploy the web app.
+5. At that point:
+   - requests stop depending on local JSON files
+   - added countries persist across deploys
+   - admin credentials become database-backed
 
-## API
+### Current limitation
 
-- `GET /api/visa-requests`
-- `POST /api/visa-requests`
-- `GET /api/admin/requests`
-- `PATCH /api/admin/requests/:referenceCode/status`
+Uploads are still filename-based only. Production storage for actual files should be added next through S3, Supabase Storage, or similar object storage.

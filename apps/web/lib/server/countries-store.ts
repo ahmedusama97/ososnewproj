@@ -1,15 +1,9 @@
 import { readJsonFile, writeJsonFile } from "./storage";
-
-export type CountryRecord = {
-  id: string;
-  code: string;
-  nameAr: string;
-  nameEn: string;
-  flag: string;
-  visaType: string;
-  accent: string;
-  createdAt: string;
-};
+import {
+  createCountryInDb,
+  listCountriesFromDb,
+  type CountryRecord,
+} from "@visaflow/database";
 
 const STORAGE_KEY = "countries.json";
 const DEFAULT_ACCENT = "from-[#964900] via-[#ffb787] to-[#126c39]";
@@ -25,7 +19,7 @@ const defaultCountries: CountryRecord[] = [
   { id: "ch", code: "ch", nameAr: "سويسرا", nameEn: "Switzerland", flag: "🇨🇭", visaType: "تأشيرة سياحية", accent: "from-[#d52b1e] via-[#ef3b2d] to-[#d52b1e]", createdAt: new Date().toISOString() }
 ];
 
-function loadCountries() {
+function loadCountriesFromFile() {
   const countries = readJsonFile<CountryRecord[]>(STORAGE_KEY, []);
   if (countries.length) {
     return countries;
@@ -36,10 +30,10 @@ function loadCountries() {
 }
 
 export function listCountries() {
-  return loadCountries();
+  return listCountriesFromDb().then((countries) => countries ?? loadCountriesFromFile());
 }
 
-export function createCountry(input: {
+function createCountryInFile(input: {
   code?: string;
   nameAr: string;
   nameEn: string;
@@ -47,7 +41,7 @@ export function createCountry(input: {
   visaType: string;
   accent?: string;
 }) {
-  const countries = loadCountries();
+  const countries = loadCountriesFromFile();
   const baseCode = (input.code?.trim() || input.nameEn.slice(0, 2)).toLowerCase();
   let candidate = baseCode;
   let counter = 1;
@@ -71,4 +65,22 @@ export function createCountry(input: {
   countries.unshift(country);
   writeJsonFile(STORAGE_KEY, countries);
   return country;
+}
+
+export function createCountry(input: {
+  code?: string;
+  nameAr: string;
+  nameEn: string;
+  flag: string;
+  visaType: string;
+  accent?: string;
+}) {
+  return createCountryInDb({
+    code: input.code,
+    nameAr: input.nameAr,
+    nameEn: input.nameEn,
+    flag: input.flag,
+    visaType: input.visaType,
+    accent: input.accent ?? DEFAULT_ACCENT,
+  }).then((country) => country ?? createCountryInFile(input));
 }

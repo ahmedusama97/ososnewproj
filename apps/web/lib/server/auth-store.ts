@@ -1,11 +1,12 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { readJsonFile, writeJsonFile } from "./storage";
+import {
+  getAdminCredentialFromDb,
+  upsertAdminCredentialInDb,
+  type AdminCredentialRecord,
+} from "@visaflow/database";
 
-type AuthSettings = {
-  username: string;
-  passwordHash: string;
-  salt: string;
-};
+type AuthSettings = AdminCredentialRecord;
 
 const STORAGE_KEY = "admin-auth.json";
 const DEFAULT_USERNAME = "admin";
@@ -27,9 +28,10 @@ function createDefaultSettings(): AuthSettings {
   };
 }
 
-function loadSettings() {
-  if (process.env.VERCEL) {
-    return createDefaultSettings();
+async function loadSettings() {
+  const databaseSettings = await getAdminCredentialFromDb();
+  if (databaseSettings) {
+    return databaseSettings;
   }
 
   const stored = readJsonFile<AuthSettings | null>(STORAGE_KEY, null);
@@ -61,8 +63,8 @@ function createSessionToken(settings: AuthSettings) {
   return createHash("sha256").update(seed).digest("hex");
 }
 
-export function loginAdmin(username: string, password: string) {
-  const settings = loadSettings();
+export async function loginAdmin(username: string, password: string) {
+  const settings = await loadSettings();
   if (username !== settings.username || !verifyPassword(password, settings)) {
     return null;
   }
@@ -73,8 +75,8 @@ export function loginAdmin(username: string, password: string) {
   };
 }
 
-export function assertAdminToken(authorization?: string | null) {
-  const settings = loadSettings();
+export async function assertAdminToken(authorization?: string | null) {
+  const settings = await loadSettings();
   const token = authorization?.startsWith("Bearer ")
     ? authorization.slice(7)
     : authorization ?? "";
@@ -82,16 +84,12 @@ export function assertAdminToken(authorization?: string | null) {
   return token === createSessionToken(settings);
 }
 
-export function changeAdminPassword(
+export async function changeAdminPassword(
   authorization: string | null,
   currentPassword: string,
   newPassword: string,
 ) {
-  if (process.env.VERCEL) {
-    return { type: "unsupported" as const };
-  }
-
-  const settings = loadSettings();
+  const settings = await loadSettings();
   const token = authorization?.startsWith("Bearer ")
     ? authorization.slice(7)
     : authorization ?? "";
@@ -116,7 +114,10 @@ export function changeAdminPassword(
     passwordHash,
   };
 
-  writeJsonFile(STORAGE_KEY, nextSettings);
+  const dbResult = await upsertAdminCredentialInDb(nextSettings);
+  if (!dbResult) {
+    writeJsonFile(STORAGE_KEY, nextSettings);
+  }
 
   return {
     type: "success" as const,

@@ -19,7 +19,7 @@ function normalizeStatus(status: unknown) {
 }
 
 export async function GET() {
-  return NextResponse.json(listRequests());
+  return NextResponse.json(await listRequests());
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const record = createRequest(
+  const record = await createRequest(
     {
       fullName: String(payload.fullName ?? applicants[0]?.fullName ?? ""),
       email: String(payload.email),

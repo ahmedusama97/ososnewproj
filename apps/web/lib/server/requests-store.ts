@@ -1,49 +1,12 @@
 import { readJsonFile, writeJsonFile } from "./storage";
-
-export type RequestContextRecord = {
-  channel?: string;
-  userAgent?: string;
-  deviceType?: string;
-  browser?: string;
-  operatingSystem?: string;
-};
-
-export type ApplicantRecord = {
-  fullName: string;
-  nationality: string;
-  passportNumber: string;
-  issuingCountry: string;
-  passportIssueDate: string;
-  passportExpiryDate: string;
-  passportDocumentName: string;
-  personalPhotoName: string;
-};
-
-export type VisaRequestRecord = {
-  id: string;
-  referenceCode: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  passportNumber: string;
-  country: string;
-  visaType: string;
-  issuingCountry?: string;
-  passportExpiryDate?: string;
-  passportDocumentName?: string;
-  personalPhotoName?: string;
-  travelDate?: string;
-  status: "draft" | "submitted" | "in_review" | "issued" | "rejected";
-  applicants: ApplicantRecord[];
-  requestContext?: RequestContextRecord;
-  createdAt: string;
-  statusHistory: Array<{
-    fromStatus: string | null;
-    toStatus: string;
-    note: string;
-    createdAt: string;
-  }>;
-};
+import {
+  createRequestInDb,
+  listRequestsFromDb,
+  updateRequestStatusInDb,
+  type ApplicantRecord,
+  type RequestContextRecord,
+  type VisaRequestRecord,
+} from "@visaflow/database";
 
 type CreatePayload = Omit<
   VisaRequestRecord,
@@ -52,7 +15,7 @@ type CreatePayload = Omit<
 
 const STORAGE_KEY = "visa-requests.json";
 
-function loadRequests() {
+function loadRequestsFromFile() {
   return readJsonFile<VisaRequestRecord[]>(STORAGE_KEY, []);
 }
 
@@ -111,47 +74,61 @@ function buildRequestContext(input?: RequestContextRecord): RequestContextRecord
 }
 
 export function listRequests() {
-  return loadRequests();
+  return listRequestsFromDb().then((requests) => requests ?? loadRequestsFromFile());
 }
 
 export function createRequest(
   payload: CreatePayload,
   inputContext?: RequestContextRecord,
 ) {
-  const requests = loadRequests();
+  const referenceCode = `VF-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${Math.floor(
+    1000 + Math.random() * 9000,
+  )}`;
+
+  return createRequestInDb(
+    {
+      ...payload,
+      requestContext: buildRequestContext(inputContext),
+    },
+    referenceCode,
+  ).then((dbRecord) => {
+    if (dbRecord) {
+      return dbRecord;
+    }
+
+    const requests = loadRequestsFromFile();
   const primaryApplicant = payload.applicants[0];
 
-  const record: VisaRequestRecord = {
-    ...payload,
-    fullName: primaryApplicant?.fullName ?? payload.fullName,
-    passportNumber: primaryApplicant?.passportNumber ?? payload.passportNumber,
-    issuingCountry: primaryApplicant?.issuingCountry ?? payload.issuingCountry,
-    passportExpiryDate:
-      primaryApplicant?.passportExpiryDate ?? payload.passportExpiryDate,
-    passportDocumentName:
-      primaryApplicant?.passportDocumentName ?? payload.passportDocumentName,
-    personalPhotoName:
-      primaryApplicant?.personalPhotoName ?? payload.personalPhotoName,
-    travelDate: primaryApplicant?.passportIssueDate ?? payload.travelDate,
-    requestContext: buildRequestContext(inputContext),
-    id: crypto.randomUUID(),
-    referenceCode: `VF-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${Math.floor(
-      1000 + Math.random() * 9000,
-    )}`,
-    createdAt: new Date().toISOString(),
-    statusHistory: [
-      {
-        fromStatus: null,
-        toStatus: payload.status,
-        note: "Request created",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  };
+    const record: VisaRequestRecord = {
+      ...payload,
+      fullName: primaryApplicant?.fullName ?? payload.fullName,
+      passportNumber: primaryApplicant?.passportNumber ?? payload.passportNumber,
+      issuingCountry: primaryApplicant?.issuingCountry ?? payload.issuingCountry,
+      passportExpiryDate:
+        primaryApplicant?.passportExpiryDate ?? payload.passportExpiryDate,
+      passportDocumentName:
+        primaryApplicant?.passportDocumentName ?? payload.passportDocumentName,
+      personalPhotoName:
+        primaryApplicant?.personalPhotoName ?? payload.personalPhotoName,
+      travelDate: primaryApplicant?.passportIssueDate ?? payload.travelDate,
+      requestContext: buildRequestContext(inputContext),
+      id: crypto.randomUUID(),
+      referenceCode,
+      createdAt: new Date().toISOString(),
+      statusHistory: [
+        {
+          fromStatus: null,
+          toStatus: payload.status,
+          note: "Request created",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
 
-  requests.unshift(record);
-  persistRequests(requests);
-  return record;
+    requests.unshift(record);
+    persistRequests(requests);
+    return record;
+  });
 }
 
 export function updateRequestStatus(
@@ -159,22 +136,28 @@ export function updateRequestStatus(
   status: VisaRequestRecord["status"],
   note: string,
 ) {
-  const requests = loadRequests();
-  const target = requests.find((request) => request.referenceCode === referenceCode);
+  return updateRequestStatusInDb(referenceCode, status, note).then((dbRecord) => {
+    if (dbRecord !== null) {
+      return dbRecord;
+    }
 
-  if (!target) {
-    return null;
-  }
+    const requests = loadRequestsFromFile();
+    const target = requests.find((request) => request.referenceCode === referenceCode);
 
-  const previousStatus = target.status;
-  target.status = status;
-  target.statusHistory.unshift({
-    fromStatus: previousStatus,
-    toStatus: status,
-    note,
-    createdAt: new Date().toISOString(),
+    if (!target) {
+      return null;
+    }
+
+    const previousStatus = target.status;
+    target.status = status;
+    target.statusHistory.unshift({
+      fromStatus: previousStatus,
+      toStatus: status,
+      note,
+      createdAt: new Date().toISOString(),
+    });
+
+    persistRequests(requests);
+    return target;
   });
-
-  persistRequests(requests);
-  return target;
 }

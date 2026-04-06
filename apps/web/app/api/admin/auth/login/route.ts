@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const payload = await request.json();
-  const session = loginAdmin(
+  const session = await loginAdmin(
     String(payload.username ?? ""),
     String(payload.password ?? ""),
   );

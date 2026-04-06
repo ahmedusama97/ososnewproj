@@ -10,6 +10,11 @@
     "dev:web": "npm --workspace @visaflow/web run dev",
     "dev:api": "npm --workspace @visaflow/api run start:dev",
     "build:web": "npm --workspace @visaflow/web run build",
-    "build:api": "npm --workspace @visaflow/api run build"
+    "build:api": "npm --workspace @visaflow/api run build",
+    "db:generate": "npm --workspace @visaflow/database run prisma:generate",
+    "db:migrate": "npm --workspace @visaflow/database run prisma:migrate",
+    "db:deploy": "npm --workspace @visaflow/database run prisma:deploy",
+    "db:studio": "npm --workspace @visaflow/database run prisma:studio",
+    "db:seed": "npm --workspace @visaflow/database run seed"
   }
 }

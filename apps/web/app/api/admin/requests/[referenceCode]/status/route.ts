@@ -23,7 +23,7 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ referenceCode: string }> },
 ) {
-  if (!assertAdminToken(request.headers.get("authorization"))) {
+  if (!(await assertAdminToken(request.headers.get("authorization")))) {
     return NextResponse.json(
       { message: "Unauthorized admin request." },
       { status: 401 },
@@ -40,7 +40,7 @@ export async function PATCH(
   }
 
   const params = await context.params;
-  const updated = updateRequestStatus(
+  const updated = await updateRequestStatus(
     params.referenceCode,
     status,
     String(payload.note ?? "تم التحديث من لوحة الإدارة"),

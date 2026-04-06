@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function PATCH(request: NextRequest) {
   const payload = await request.json();
-  const result = changeAdminPassword(
+  const result = await changeAdminPassword(
     request.headers.get("authorization"),
     String(payload.currentPassword ?? ""),
     String(payload.newPassword ?? ""),
@@ -30,16 +30,6 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(
       { message: "New password must be at least 8 characters." },
       { status: 400 },
-    );
-  }
-
-  if (result.type === "unsupported") {
-    return NextResponse.json(
-      {
-        message:
-          "Password changes are disabled on the hosted demo until persistent storage is added.",
-      },
-      { status: 501 },
     );
   }
 
