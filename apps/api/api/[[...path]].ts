@@ -8,7 +8,8 @@ let cachedHandler: Promise<RequestHandler> | null = null;
 async function getHandler() {
   const app = await createApp();
   await app.init();
-  return app.getHttpAdapter().getInstance<RequestHandler>();
+  const instance = app.getHttpAdapter().getInstance();
+  return instance as RequestHandler;
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
