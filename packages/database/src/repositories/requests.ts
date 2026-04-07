@@ -67,13 +67,13 @@ type RequestRow = {
   createdAt: Date;
   country: { nameEn: string };
   applicants: ApplicantRecord[];
-  requestContext: (RequestContextRecord & {
+  requestContext: {
     channel: string | null;
     userAgent: string | null;
     deviceType: string | null;
     browser: string | null;
     operatingSystem: string | null;
-  }) | null;
+  } | null;
   statusHistory: Array<{
     fromStatus: string | null;
     toStatus: string;
