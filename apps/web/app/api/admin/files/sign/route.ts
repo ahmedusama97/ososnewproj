@@ -22,6 +22,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "File path is required." }, { status: 400 });
   }
 
+  if (!path.includes("/")) {
+    return NextResponse.json(
+      {
+        message:
+          "This request only has a legacy filename. Re-upload the document after enabling Supabase Storage.",
+      },
+      { status: 409 },
+    );
+  }
+
   if (!supabaseUrl || !serviceRoleKey) {
     return NextResponse.json(
       { message: "Supabase Storage is not configured." },
@@ -47,7 +57,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 502 });
   }
 
-  return NextResponse.json({
-    signedUrl: `${supabaseUrl.replace(/\/$/, "")}/storage/v1${result.signedURL}`,
-  });
+  const signedPath = result.signedURL ?? result.signedUrl ?? result.signed_url;
+  if (!signedPath) {
+    return NextResponse.json(
+      { message: "Supabase did not return a signed URL." },
+      { status: 502 },
+    );
+  }
+
+  const storageBaseUrl = `${supabaseUrl.replace(/\/$/, "")}/storage/v1`;
+  const signedUrl = String(signedPath).startsWith("http")
+    ? String(signedPath)
+    : `${storageBaseUrl}${String(signedPath).startsWith("/") ? "" : "/"}${signedPath}`;
+
+  return NextResponse.json({ signedUrl });
 }

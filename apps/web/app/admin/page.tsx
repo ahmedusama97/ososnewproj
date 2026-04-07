@@ -574,11 +574,11 @@ export default function AdminPage() {
         body: JSON.stringify({ path }),
       });
 
+      const payload = await response.json();
       if (!response.ok) {
-        throw new Error("تعذر إنشاء رابط آمن للملف.");
+        throw new Error(payload.message ?? "تعذر إنشاء رابط آمن للملف.");
       }
 
-      const payload = await response.json();
       window.open(payload.signedUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر فتح الملف.");
@@ -1092,7 +1092,8 @@ function FileSummaryCard({
   value: string;
   onOpen: () => void;
 }) {
-  const hasStoredPath = value.includes("/") && value !== "-";
+  const hasValue = value && value !== "-";
+  const hasStoredPath = hasValue && value.includes("/");
 
   return (
     <div className="rounded-xl border border-[#d5c3b5]/40 bg-[#f7f3f0] p-4">
@@ -1106,6 +1107,10 @@ function FileSummaryCard({
         >
           فتح الملف
         </button>
+      ) : hasValue ? (
+        <p className="mt-3 rounded-xl bg-[#fff1e4] px-3 py-2 text-xs font-bold text-[#7e5700]">
+          ملف قديم محفوظ كاسم فقط. ارفع طلبًا جديدًا بعد تفعيل Storage لفتحه كرابط آمن.
+        </p>
       ) : null}
     </div>
   );
