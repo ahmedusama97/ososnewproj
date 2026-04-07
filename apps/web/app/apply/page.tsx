@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "../../lib/api";
+import { visaDestinations } from "../../lib/visa-content";
 
 type StepKey = "country" | "personal" | "passport" | "documents" | "success";
 
@@ -27,6 +28,8 @@ type ApplicantForm = {
   passportDocumentName: string;
   personalPhotoName: string;
 };
+
+type FileField = "passportDocumentName" | "personalPhotoName";
 
 type ContactForm = {
   email: string;
@@ -71,6 +74,7 @@ export default function ApplyPage() {
   const [referenceCode, setReferenceCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [uploadingFileKey, setUploadingFileKey] = useState("");
   const [contactForm, setContactForm] = useState<ContactForm>({
     email: "",
     phone: "",
@@ -113,6 +117,17 @@ export default function ApplyPage() {
 
   const stepIndex = useMemo(() => steps.findIndex((item) => item.key === step), [step]);
   const progressWidth = step === "success" ? "100%" : `${Math.max(0, stepIndex) * 50}%`;
+  const pricingEstimate = useMemo(() => {
+    if (!selectedCountry) {
+      return null;
+    }
+
+    return visaDestinations.find(
+      (destination) =>
+        destination.country.toLowerCase() === selectedCountry.nameEn.toLowerCase() ||
+        destination.countryAr === selectedCountry.nameAr,
+    );
+  }, [selectedCountry]);
 
   function updateContactField<K extends keyof ContactForm>(key: K, value: ContactForm[K]) {
     setContactForm((current) => ({ ...current, [key]: value }));
@@ -146,6 +161,57 @@ export default function ApplyPage() {
         ...Array.from({ length: safeCount - current.length }, () => createApplicant()),
       ];
     });
+  }
+
+  async function uploadDocument(file: File) {
+    const buffer = await file.arrayBuffer();
+    const base64 = btoa(
+      Array.from(new Uint8Array(buffer))
+        .map((byte) => String.fromCharCode(byte))
+        .join(""),
+    );
+
+    const response = await fetch(apiUrl("/api/uploads"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type || "application/octet-stream",
+        base64,
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.message ?? "تعذر رفع الملف.");
+    }
+
+    return String(payload.path ?? payload.name ?? file.name);
+  }
+
+  async function handleDocumentSelect(
+    applicantIndex: number,
+    key: FileField,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      updateApplicantField(applicantIndex, key, "");
+      return;
+    }
+
+    const uploadKey = `${applicantIndex}-${key}`;
+    setUploadingFileKey(uploadKey);
+    setSubmitError("");
+
+    try {
+      const storedName = await uploadDocument(file);
+      updateApplicantField(applicantIndex, key, storedName);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "تعذر رفع الملف.");
+    } finally {
+      setUploadingFileKey("");
+    }
   }
 
   function handleCountrySelect(country: CountryOption) {
@@ -360,10 +426,15 @@ export default function ApplyPage() {
               <div className="mb-6 flex items-center justify-between rounded-[28px] border border-[#dfc1af] bg-white/90 px-5 py-4 shadow-[0_20px_60px_rgba(150,73,0,0.08)]">
                 <div className="flex items-center gap-4">
                   <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${selectedCountry.accent} text-3xl shadow-inner`}>{selectedCountry.flag}</div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#574235]">الوجهة المختارة</p>
-                    <strong className="block text-xl font-black text-[#1c1b1b]">{selectedCountry.nameAr}</strong>
-                  </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#574235]">الوجهة المختارة</p>
+                  <strong className="block text-xl font-black text-[#1c1b1b]">{selectedCountry.nameAr}</strong>
+                  {pricingEstimate ? (
+                    <p className="mt-1 text-xs font-bold text-[#964900]">
+                      تقدير الخدمة يبدأ من {pricingEstimate.priceSar} SAR • {pricingEstimate.processingTime}
+                    </p>
+                  ) : null}
+                </div>
                 </div>
                 <button type="button" onClick={() => setStep("country")} className="rounded-full border border-[#dfc1af] px-4 py-2 text-sm font-bold text-[#964900] transition hover:bg-[#fff7f0]">تغيير الدولة</button>
               </div>
@@ -379,6 +450,8 @@ export default function ApplyPage() {
               onContactChange={updateContactField}
               onApplicantChange={updateApplicantField}
               onApplicantCountChange={setApplicantCount}
+              onDocumentSelect={handleDocumentSelect}
+              uploadingFileKey={uploadingFileKey}
               onNext={handleAdvance}
             />
           </>
@@ -400,6 +473,8 @@ function WizardCard({
   onContactChange,
   onApplicantChange,
   onApplicantCountChange,
+  onDocumentSelect,
+  uploadingFileKey,
   onNext,
 }: {
   step: Exclude<StepKey, "country" | "success">;
@@ -415,6 +490,12 @@ function WizardCard({
     value: ApplicantForm[K],
   ) => void;
   onApplicantCountChange: (count: number) => void;
+  onDocumentSelect: (
+    applicantIndex: number,
+    key: FileField,
+    event: ChangeEvent<HTMLInputElement>,
+  ) => Promise<void>;
+  uploadingFileKey: string;
   onNext: (step: StepKey) => Promise<void>;
 }) {
   const config = {
@@ -550,8 +631,22 @@ function WizardCard({
               subtitle={`${applicant.firstName || "بدون اسم"} ${applicant.lastName || ""}`.trim()}
             >
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <UploadCard label="صورة الجواز" icon="description" hint="PDF أو JPG أو PNG" selectedFile={applicant.passportDocumentName} onFileSelect={(event) => onApplicantChange(index, "passportDocumentName", event.target.files?.[0]?.name ?? "")} />
-                <UploadCard label="الصورة الشخصية" icon="account_circle" hint="خلفية بيضاء" selectedFile={applicant.personalPhotoName} onFileSelect={(event) => onApplicantChange(index, "personalPhotoName", event.target.files?.[0]?.name ?? "")} />
+                <UploadCard
+                  label="صورة الجواز"
+                  icon="description"
+                  hint="PDF أو JPG أو PNG"
+                  selectedFile={applicant.passportDocumentName}
+                  isUploading={uploadingFileKey === `${index}-passportDocumentName`}
+                  onFileSelect={(event) => onDocumentSelect(index, "passportDocumentName", event)}
+                />
+                <UploadCard
+                  label="الصورة الشخصية"
+                  icon="account_circle"
+                  hint="خلفية بيضاء"
+                  selectedFile={applicant.personalPhotoName}
+                  isUploading={uploadingFileKey === `${index}-personalPhotoName`}
+                  onFileSelect={(event) => onDocumentSelect(index, "personalPhotoName", event)}
+                />
               </div>
             </ApplicantSection>
           ))}
@@ -603,7 +698,10 @@ function SuccessCard({ referenceCode }: { referenceCode: string }) {
           <span className="text-sm font-semibold tracking-tight text-[#574235]">رقم المرجع:</span>
           <span className="ml-2 text-sm font-bold text-[#964900]">{referenceCode}</span>
         </div>
-        <Link href="/home" className="apply-primary w-full md:w-auto">العودة إلى الرئيسية<span className="material-symbols-outlined">arrow_forward</span></Link>
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
+          <Link href={`/track?reference=${referenceCode}`} className="apply-primary w-full md:w-auto">تتبع الطلب<span className="material-symbols-outlined">search</span></Link>
+          <Link href="/home" className="apply-primary w-full bg-[#574235] md:w-auto">العودة إلى الرئيسية<span className="material-symbols-outlined">arrow_forward</span></Link>
+        </div>
       </div>
     </section>
   );
@@ -659,23 +757,25 @@ function UploadCard({
   icon,
   hint,
   selectedFile,
+  isUploading,
   onFileSelect,
 }: {
   label: string;
   icon: string;
   hint: string;
   selectedFile: string;
-  onFileSelect: (event: ChangeEvent<HTMLInputElement>) => void;
+  isUploading: boolean;
+  onFileSelect: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
 }) {
   return (
     <div className="space-y-3">
       <label className="block text-sm font-bold tracking-tight text-[#574235]">{label}</label>
       <div className="group relative flex h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#dfc1af] bg-[#f6f3f2]/60 transition-colors hover:bg-[#f6f3f2]">
-        <input className="absolute inset-0 cursor-pointer opacity-0" type="file" onChange={onFileSelect} />
+        <input className="absolute inset-0 cursor-pointer opacity-0" type="file" onChange={onFileSelect} disabled={isUploading} />
         <span className="material-symbols-outlined text-4xl text-[#574235]/40 transition-colors group-hover:text-[#964900]">{icon}</span>
         <div className="text-center">
-          <p className="text-sm font-bold text-[#1c1b1b]">{selectedFile || "اضغطي للرفع أو اسحبي الملف هنا"}</p>
-          <p className="mt-1 text-xs text-[#574235]">{hint}</p>
+          <p className="text-sm font-bold text-[#1c1b1b]">{isUploading ? "جاري رفع الملف..." : selectedFile || "اضغطي للرفع أو اسحبي الملف هنا"}</p>
+          <p className="mt-1 break-all px-4 text-xs text-[#574235]">{hint}</p>
         </div>
       </div>
     </div>

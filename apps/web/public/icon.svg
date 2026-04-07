@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VisaFlow">
+  <rect width="512" height="512" rx="120" fill="#fcf9f8"/>
+  <circle cx="256" cy="256" r="188" fill="#fff1e4"/>
+  <path d="M164 328c42-10 66-34 82-70 14-32 35-58 102-74-36 34-46 72-58 108-14 43-45 69-126 36Z" fill="#964900"/>
+  <path d="M168 188h176c18 0 32 14 32 32v14H136v-14c0-18 14-32 32-32Z" fill="#ff8000"/>
+  <path d="M136 244h240v72c0 18-14 32-32 32H168c-18 0-32-14-32-32v-72Z" fill="#126c39"/>
+  <path d="M184 280h88" stroke="#fcf9f8" stroke-width="24" stroke-linecap="round"/>
+</svg>

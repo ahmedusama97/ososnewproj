@@ -17,7 +17,14 @@ npm run dev:api
 
 - `/home`
 - `/apply`
+- `/track`
+- `/pricing`
 - `/admin`
+- `/privacy`
+- `/terms`
+- `/refund`
+- `/compliance`
+- `/visa/[slug]`
 
 The root route `/` redirects to `/home`.
 
@@ -52,7 +59,7 @@ npm run db:seed
 ### Recommended production setup
 
 1. Create a PostgreSQL database on Neon, Supabase, Railway, or Vercel Postgres.
-2. Add `DATABASE_URL` to the web app environment.
+2. Add `DATABASE_URL` and `DIRECT_URL` to the web app environment.
 3. Run:
    ```bash
    npm run db:migrate
@@ -64,6 +71,21 @@ npm run db:seed
    - added countries persist across deploys
    - admin credentials become database-backed
 
-### Current limitation
+## Uploads
 
-Uploads are still filename-based only. Production storage for actual files should be added next through S3, Supabase Storage, or similar object storage.
+Document upload support is wired for Supabase Storage. Add these variables to `apps/web` on Vercel:
+
+```bash
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_STORAGE_BUCKET=visa-documents
+```
+
+Create a private Supabase Storage bucket named `visa-documents`. If these variables are not configured, the app keeps the filename fallback so the demo flow does not break.
+
+## Production Notes
+
+- Rotate the Supabase database password before live usage if it was shared during setup.
+- Keep `NEXT_PUBLIC_API_BASE_URL` unset. The API routes now live inside the Next.js web app.
+- Payment is currently in manual-review mode. Configure a real provider before collecting payments online.
+- Legal pages are operational drafts and should be reviewed by a lawyer before commercial launch.

@@ -561,6 +561,30 @@ export default function AdminPage() {
     router.refresh();
   }
 
+  async function handleOpenFile(path: string) {
+    if (!path || path === "-") {
+      setError("لا يوجد ملف متاح للفتح.");
+      return;
+    }
+
+    setError("");
+    try {
+      const response = await authFetch("/api/admin/files/sign", {
+        method: "POST",
+        body: JSON.stringify({ path }),
+      });
+
+      if (!response.ok) {
+        throw new Error("تعذر إنشاء رابط آمن للملف.");
+      }
+
+      const payload = await response.json();
+      window.open(payload.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر فتح الملف.");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-[#1f1b16]" dir="rtl">
       {isMobileNavOpen ? (
@@ -845,8 +869,8 @@ export default function AdminPage() {
                                 <SummaryCard label="Nationality" value={selectedApplicant.nationality || "-"} />
                                 <SummaryCard label="Passport Expiry" value={selectedApplicant.passportExpiryDate || "-"} />
                                 <SummaryCard label="Issuing Country" value={selectedApplicant.issuingCountry || "-"} />
-                                <SummaryCard label="Photo File" value={selectedApplicant.personalPhotoName || "-"} />
-                                <SummaryCard label="Passport File" value={selectedApplicant.passportDocumentName || "-"} />
+                                <FileSummaryCard label="Photo File" value={selectedApplicant.personalPhotoName || "-"} onOpen={() => void handleOpenFile(selectedApplicant.personalPhotoName)} />
+                                <FileSummaryCard label="Passport File" value={selectedApplicant.passportDocumentName || "-"} onOpen={() => void handleOpenFile(selectedApplicant.passportDocumentName)} />
                               </div>
                             </div>
                           ) : null}
@@ -1055,6 +1079,34 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-[#d5c3b5]/40 bg-[#f7f3f0] p-4">
       <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#837567]">{label}</p>
       <p className="text-sm font-black text-[#412100]">{value}</p>
+    </div>
+  );
+}
+
+function FileSummaryCard({
+  label,
+  value,
+  onOpen,
+}: {
+  label: string;
+  value: string;
+  onOpen: () => void;
+}) {
+  const hasStoredPath = value.includes("/") && value !== "-";
+
+  return (
+    <div className="rounded-xl border border-[#d5c3b5]/40 bg-[#f7f3f0] p-4">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#837567]">{label}</p>
+      <p className="break-all text-sm font-black text-[#412100]">{value}</p>
+      {hasStoredPath ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 rounded-full bg-[#7e5700] px-4 py-2 text-xs font-bold text-white"
+        >
+          فتح الملف
+        </button>
+      ) : null}
     </div>
   );
 }
