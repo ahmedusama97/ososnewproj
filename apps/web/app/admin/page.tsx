@@ -167,6 +167,10 @@ export default function AdminPage() {
   );
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [filePreview, setFilePreview] = useState<{
+    url: string;
+    label: string;
+  } | null>(null);
   const knownReferencesRef = useRef<Set<string>>(new Set(readStoredKnownRequests()));
   const [countryForm, setCountryForm] = useState({
     code: "",
@@ -561,7 +565,7 @@ export default function AdminPage() {
     router.refresh();
   }
 
-  async function handleOpenFile(path: string) {
+  async function handleOpenFile(path: string, label: string) {
     if (!path || path === "-") {
       setError("لا يوجد ملف متاح للفتح.");
       return;
@@ -579,7 +583,10 @@ export default function AdminPage() {
         throw new Error(payload.message ?? "تعذر إنشاء رابط آمن للملف.");
       }
 
-      window.open(payload.signedUrl, "_blank", "noopener,noreferrer");
+      setFilePreview({
+        url: payload.signedUrl,
+        label,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر فتح الملف.");
     }
@@ -587,6 +594,41 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-[#1f1b16]" dir="rtl">
+      {filePreview ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 md:p-8">
+          <section className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d5c3b5] px-5 py-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#c26d00]">Document Preview</p>
+                <h2 className="text-xl font-black text-[#1f1b16]">{filePreview.label}</h2>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={filePreview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-[#d5c3b5] px-4 py-2 text-xs font-bold text-[#7e5700]"
+                >
+                  فتح خارجي
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setFilePreview(null)}
+                  className="rounded-full bg-[#7e5700] px-4 py-2 text-xs font-bold text-white"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </header>
+            <iframe
+              title={filePreview.label}
+              src={filePreview.url}
+              className="h-full w-full flex-1 bg-[#f7f3f0]"
+            />
+          </section>
+        </div>
+      ) : null}
+
       {isMobileNavOpen ? (
         <button
           type="button"
@@ -869,8 +911,8 @@ export default function AdminPage() {
                                 <SummaryCard label="Nationality" value={selectedApplicant.nationality || "-"} />
                                 <SummaryCard label="Passport Expiry" value={selectedApplicant.passportExpiryDate || "-"} />
                                 <SummaryCard label="Issuing Country" value={selectedApplicant.issuingCountry || "-"} />
-                                <FileSummaryCard label="Photo File" value={selectedApplicant.personalPhotoName || "-"} onOpen={() => void handleOpenFile(selectedApplicant.personalPhotoName)} />
-                                <FileSummaryCard label="Passport File" value={selectedApplicant.passportDocumentName || "-"} onOpen={() => void handleOpenFile(selectedApplicant.passportDocumentName)} />
+                                <FileSummaryCard label="Photo File" value={selectedApplicant.personalPhotoName || "-"} onOpen={() => void handleOpenFile(selectedApplicant.personalPhotoName, "Photo File")} />
+                                <FileSummaryCard label="Passport File" value={selectedApplicant.passportDocumentName || "-"} onOpen={() => void handleOpenFile(selectedApplicant.passportDocumentName, "Passport File")} />
                               </div>
                             </div>
                           ) : null}
