@@ -4,6 +4,19 @@ import { assertAdminToken } from "../../../../../lib/server/auth-store";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function readSupabaseResponse(response: Response) {
+  const raw = await response.text();
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return { message: raw };
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!(await assertAdminToken(request.headers.get("authorization")))) {
     return NextResponse.json(
@@ -52,9 +65,17 @@ export async function POST(request: NextRequest) {
     },
   );
 
-  const result = await response.json();
+  const result = await readSupabaseResponse(response);
   if (!response.ok) {
-    return NextResponse.json(result, { status: 502 });
+    return NextResponse.json(
+      {
+        message:
+          String(result.message ?? result.error ?? "Supabase signed URL request failed."),
+        supabaseStatus: response.status,
+        bucket,
+      },
+      { status: 502 },
+    );
   }
 
   const signedPath = result.signedURL ?? result.signedUrl ?? result.signed_url;

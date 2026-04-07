@@ -7,6 +7,25 @@ function cleanFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120) || "document";
 }
 
+async function readSupabaseError(response: Response) {
+  const raw = await response.text();
+  if (!raw) {
+    return "Supabase Storage request failed.";
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      message?: string;
+      error?: string;
+      statusCode?: string | number;
+    };
+
+    return parsed.message ?? parsed.error ?? raw;
+  } catch {
+    return raw;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const payload = await request.json();
   const fileName = cleanFileName(String(payload.fileName ?? ""));
@@ -49,9 +68,13 @@ export async function POST(request: NextRequest) {
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const message = await readSupabaseError(response);
     return NextResponse.json(
-      { message: message || "Storage upload failed." },
+      {
+        message: `Supabase Storage upload failed: ${message}`,
+        supabaseStatus: response.status,
+        bucket,
+      },
       { status: 502 },
     );
   }
