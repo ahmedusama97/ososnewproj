@@ -11,6 +11,17 @@ export type CountryRecord = {
   createdAt: string;
 };
 
+type CountryRow = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string;
+  flag: string;
+  visaType: string;
+  accent: string;
+  createdAt: Date;
+};
+
 export async function listCountriesFromDb() {
   const prisma = getPrismaClient();
   if (!prisma) {
@@ -22,7 +33,7 @@ export async function listCountriesFromDb() {
     orderBy: [{ createdAt: "desc" }],
   });
 
-  return countries.map<CountryRecord>((country) => ({
+  return countries.map((country: CountryRow): CountryRecord => ({
     id: country.id,
     code: country.code,
     nameAr: country.nameAr,

@@ -1,4 +1,3 @@
-import { Prisma, VisaRequestStatus } from "../../generated/client";
 import { getPrismaClient } from "../client";
 
 export type RequestContextRecord = {
@@ -51,20 +50,53 @@ type CreatePayload = Omit<
   "id" | "referenceCode" | "createdAt" | "statusHistory"
 >;
 
-function mapStatus(status: VisaRequestStatus): VisaRequestRecord["status"] {
-  return status;
+type RequestRow = {
+  id: string;
+  referenceCode: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  passportNumber: string;
+  visaType: string;
+  issuingCountry: string | null;
+  passportExpiryDate: string | null;
+  passportDocumentName: string | null;
+  personalPhotoName: string | null;
+  travelDate: string | null;
+  status: VisaRequestRecord["status"];
+  createdAt: Date;
+  country: { nameEn: string };
+  applicants: ApplicantRecord[];
+  requestContext: (RequestContextRecord & {
+    channel: string | null;
+    userAgent: string | null;
+    deviceType: string | null;
+    browser: string | null;
+    operatingSystem: string | null;
+  }) | null;
+  statusHistory: Array<{
+    fromStatus: string | null;
+    toStatus: string;
+    note: string;
+    createdAt: Date;
+  }>;
+};
+
+function mapStatus(status: string): VisaRequestRecord["status"] {
+  if (
+    status === "draft" ||
+    status === "submitted" ||
+    status === "in_review" ||
+    status === "issued" ||
+    status === "rejected"
+  ) {
+    return status;
+  }
+
+  return "submitted";
 }
 
-function mapRecord(
-  request: Prisma.VisaRequestGetPayload<{
-    include: {
-      country: true;
-      applicants: true;
-      requestContext: true;
-      statusHistory: true;
-    };
-  }>,
-): VisaRequestRecord {
+function mapRecord(request: RequestRow): VisaRequestRecord {
   return {
     id: request.id,
     referenceCode: request.referenceCode,
