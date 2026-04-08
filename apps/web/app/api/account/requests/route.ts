@@ -26,5 +26,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(await listUserRequests(session.user.id));
+  const accountCreatedAt = new Date(session.user.createdAt).getTime();
+  const requests = await listUserRequests(session.user.id);
+  const visibleRequests = requests.filter((request) => {
+    const requestCreatedAt = new Date(request.createdAt).getTime();
+
+    if (Number.isNaN(requestCreatedAt) || Number.isNaN(accountCreatedAt)) {
+      return true;
+    }
+
+    return requestCreatedAt >= accountCreatedAt;
+  });
+
+  return NextResponse.json(visibleRequests);
 }

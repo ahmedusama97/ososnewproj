@@ -9,7 +9,6 @@ import {
   getUserSessionByTokenHashFromDb,
   updateUserPasswordInDb,
 } from "@visaflow/database";
-import { claimRequestsByEmail } from "./requests-store";
 
 export const USER_TOKEN_COOKIE = "visaflow_user_token";
 const USER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -138,7 +137,6 @@ export async function registerUserAccount(input: {
     return { type: "unavailable" as const };
   }
 
-  await claimRequestsByEmail(user.id, email);
   const session = await createSessionForUser(user.id);
   if (!session) {
     return { type: "unavailable" as const };
@@ -172,7 +170,6 @@ export async function loginUserAccount(input: {
     return { type: "invalid-credentials" as const };
   }
 
-  await claimRequestsByEmail(user.id, user.email);
   const session = await createSessionForUser(user.id);
   if (!session) {
     return { type: "unavailable" as const };
