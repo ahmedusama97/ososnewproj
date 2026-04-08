@@ -1,0 +1,155 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { apiUrl } from "../../lib/api";
+
+export default function UserRegisterPage() {
+  const router = useRouter();
+  const [nextPath, setNextPath] = useState("/account");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setNextPath(params.get("next") || "/account");
+  }, []);
+
+  async function handleRegister() {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setError("كمّل بيانات التسجيل أولًا.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("تأكيد كلمة المرور غير مطابق.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(apiUrl("/api/auth/register"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+          locale: "ar",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.message ?? "تعذر إنشاء الحساب.");
+      }
+
+      router.replace(nextPath);
+      router.refresh();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "تعذر إنشاء الحساب.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="apply-shell min-h-screen px-4 py-10" dir="rtl">
+      <div className="mx-auto max-w-6xl">
+        <nav className="mb-8 flex items-center justify-between rounded-[28px] border border-[#dfc1af] bg-white/90 px-5 py-4">
+          <Link href="/home" className="text-lg font-black text-[#964900]">VisaFlow</Link>
+          <Link href="/login" className="rounded-full border border-[#dfc1af] px-4 py-2 text-sm font-bold text-[#964900]">
+            لدي حساب بالفعل
+          </Link>
+        </nav>
+
+        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[36px] border border-[#dfc1af] bg-white p-8 shadow-[0_24px_80px_rgba(150,73,0,0.08)] md:p-10">
+            <p className="mb-3 text-xs font-black uppercase tracking-[0.32em] text-[#964900]">Create Account</p>
+            <h1 className="mb-4 text-4xl font-black tracking-tight text-[#1c1b1b] md:text-5xl">
+              إنشاء حساب المستخدم
+            </h1>
+            <p className="mb-8 max-w-2xl leading-8 text-[#574235]">
+              أنشئ حسابك مرة واحدة، وبعدها ستظهر لك كل الطلبات المرتبطة ببريدك داخل لوحة المستخدم.
+            </p>
+
+            <div className="grid gap-4">
+              <input
+                className="apply-input"
+                placeholder="الاسم الكامل"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+              />
+              <input
+                className="apply-input"
+                placeholder="البريد الإلكتروني"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              <input
+                className="apply-input"
+                placeholder="كلمة المرور"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <input
+                className="apply-input"
+                placeholder="تأكيد كلمة المرور"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+
+              {error ? (
+                <div className="rounded-2xl bg-[#ffdad6] px-4 py-3 text-sm font-semibold text-[#93000a]">
+                  {error}
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void handleRegister()}
+                disabled={loading}
+                className="apply-primary justify-center"
+              >
+                {loading ? "جاري إنشاء الحساب..." : "إنشاء الحساب"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-[36px] border border-[#dfc1af] bg-[#fff8f1] p-8 shadow-[0_24px_80px_rgba(150,73,0,0.08)] md:p-10">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ffefe3] text-[#964900]">
+              <span className="material-symbols-outlined text-3xl">person_add</span>
+            </div>
+            <h2 className="mb-4 text-2xl font-black text-[#1c1b1b]">بعد التسجيل</h2>
+            <ul className="space-y-4 text-[#574235]">
+              {[
+                "لوحة مستخدم فيها الطلبات المربوطة بنفس البريد.",
+                "إدارة كلمة المرور من نفس الحساب بدون الرجوع للإدارة.",
+                "متابعة حالة التأشيرة والانتقال السريع لصفحة التقديم.",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3 rounded-2xl bg-white/80 p-4">
+                  <span className="material-symbols-outlined text-[#126c39]">check_circle</span>
+                  <span className="leading-7">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}

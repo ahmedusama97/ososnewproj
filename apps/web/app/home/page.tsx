@@ -1,3 +1,4 @@
+/*
 import Link from "next/link";
 import { legalLinks, visaDestinations } from "../../lib/visa-content";
 
@@ -165,4 +166,18 @@ export default function HomePage() {
       </footer>
     </div>
   );
+}
+*/
+
+import type { Metadata } from "next";
+import { LandingPage } from "../../components/marketing/landing-page";
+
+export const metadata: Metadata = {
+  title: "VisaFlow العربية",
+  description:
+    "منصة عربية لتقديم طلبات التأشيرات ورفع المستندات وتتبع الحالة من حساب المستخدم.",
+};
+
+export default function HomePage() {
+  return <LandingPage locale="ar" />;
 }

@@ -1,7 +1,9 @@
 import { readJsonFile, writeJsonFile } from "./storage";
 import {
+  claimRequestsByEmailInDb,
   createRequestInDb,
   listRequestsFromDb,
+  listUserRequestsFromDb,
   updateRequestStatusInDb,
   type ApplicantRecord,
   type RequestContextRecord,
@@ -11,7 +13,9 @@ import {
 type CreatePayload = Omit<
   VisaRequestRecord,
   "id" | "referenceCode" | "createdAt" | "statusHistory"
->;
+> & {
+  userId?: string;
+};
 
 const STORAGE_KEY = "visa-requests.json";
 
@@ -77,6 +81,14 @@ export function listRequests() {
   return listRequestsFromDb().then((requests) => requests ?? loadRequestsFromFile());
 }
 
+export function listUserRequests(userId: string) {
+  return listUserRequestsFromDb(userId).then((requests) => requests ?? []);
+}
+
+export function claimRequestsByEmail(userId: string, email: string) {
+  return claimRequestsByEmailInDb(userId, email).then((count) => count ?? 0);
+}
+
 export function createRequest(
   payload: CreatePayload,
   inputContext?: RequestContextRecord,
@@ -97,7 +109,7 @@ export function createRequest(
     }
 
     const requests = loadRequestsFromFile();
-  const primaryApplicant = payload.applicants[0];
+    const primaryApplicant = payload.applicants[0];
 
     const record: VisaRequestRecord = {
       ...payload,

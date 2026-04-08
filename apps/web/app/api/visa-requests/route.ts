@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRequest, listRequests } from "../../../lib/server/requests-store";
+import {
+  getUserSessionFromToken,
+  USER_TOKEN_COOKIE,
+} from "../../../lib/server/user-auth-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +29,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const payload = await request.json();
   const applicants = Array.isArray(payload.applicants) ? payload.applicants : [];
+  const token = request.cookies.get(USER_TOKEN_COOKIE)?.value;
+  const userSession = await getUserSessionFromToken(token);
 
   if (
     !payload.email ||
@@ -70,6 +76,7 @@ export async function POST(request: NextRequest) {
         : undefined,
       travelDate: payload.travelDate ? String(payload.travelDate) : undefined,
       status: normalizeStatus(payload.status),
+      userId: userSession?.user.id,
       applicants: applicants.map((applicant: Record<string, unknown>) => ({
         fullName: String(applicant.fullName ?? "").trim(),
         nationality: String(applicant.nationality ?? "").trim(),

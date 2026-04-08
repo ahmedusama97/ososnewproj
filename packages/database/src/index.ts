@@ -11,9 +11,25 @@ export {
 } from "./repositories/admin";
 export {
   createRequestInDb,
+  claimRequestsByEmailInDb,
   listRequestsFromDb,
+  listUserRequestsFromDb,
   updateRequestStatusInDb,
   type ApplicantRecord,
   type RequestContextRecord,
   type VisaRequestRecord,
 } from "./repositories/requests";
+export {
+  createUserInDb,
+  createUserSessionInDb,
+  deleteUserByIdInDb,
+  deleteUserSessionByTokenHashFromDb,
+  deleteUserSessionsByUserIdFromDb,
+  getUserByEmailFromDb,
+  getUserByIdFromDb,
+  getUserSessionByTokenHashFromDb,
+  updateUserPasswordInDb,
+  type UserAuthRecord,
+  type UserRecord,
+  type UserSessionRecord,
+} from "./repositories/users";

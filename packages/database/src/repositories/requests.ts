@@ -48,7 +48,9 @@ export type VisaRequestRecord = {
 type CreatePayload = Omit<
   VisaRequestRecord,
   "id" | "referenceCode" | "createdAt" | "statusHistory"
->;
+> & {
+  userId?: string;
+};
 
 type RequestRow = {
   id: string;
@@ -162,6 +164,51 @@ export async function listRequestsFromDb() {
   return requests.map(mapRecord);
 }
 
+export async function listUserRequestsFromDb(userId: string) {
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return null;
+  }
+
+  const requests = await prisma.visaRequest.findMany({
+    where: { userId },
+    include: {
+      country: true,
+      applicants: true,
+      requestContext: true,
+      statusHistory: true,
+    },
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  return requests.map(mapRecord);
+}
+
+export async function claimRequestsByEmailInDb(userId: string, email: string) {
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return null;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) {
+    return 0;
+  }
+
+  const result = await prisma.visaRequest.updateMany({
+    where: {
+      userId: null,
+      email: {
+        equals: normalizedEmail,
+        mode: "insensitive",
+      },
+    },
+    data: { userId },
+  });
+
+  return result.count;
+}
+
 export async function createRequestInDb(
   payload: CreatePayload,
   referenceCode: string,
@@ -215,6 +262,7 @@ export async function createRequestInDb(
       travelDate: primaryApplicant?.passportIssueDate ?? payload.travelDate,
       status: payload.status,
       countryId: country.id,
+      userId: payload.userId,
       requestContext: payload.requestContext
         ? {
             create: {
