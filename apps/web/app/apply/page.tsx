@@ -31,6 +31,13 @@ type ApplicantForm = {
 
 type FileField = "passportDocumentName" | "personalPhotoName";
 
+type UploadedFileMeta = {
+  name: string;
+  sizeLabel: string;
+  previewUrl: string | null;
+  extension: string;
+};
+
 type ContactForm = {
   email: string;
   phone: string;
@@ -50,6 +57,13 @@ const steps: Array<{ key: Exclude<StepKey, "country" | "success">; label: string
 ];
 
 const MAX_APPLICANTS = 100;
+const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+const ACCEPTED_DOCUMENT_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+const ACCEPTED_DOCUMENT_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+];
 
 function createApplicant(): ApplicantForm {
   return {
@@ -65,6 +79,45 @@ function createApplicant(): ApplicantForm {
   };
 }
 
+function normalizeFileExtension(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
+}
+
+function formatFileSize(size: number) {
+  if (size >= 1024 * 1024) {
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("تعذر قراءة الملف."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function validateUploadFile(file: File) {
+  const extension = normalizeFileExtension(file.name);
+  const typeMatches =
+    !file.type || ACCEPTED_DOCUMENT_TYPES.includes(file.type.toLowerCase());
+  const extensionMatches = ACCEPTED_DOCUMENT_EXTENSIONS.includes(extension);
+
+  if (!typeMatches && !extensionMatches) {
+    return "نوع الملف غير مدعوم. المسموح فقط PDF أو JPG أو PNG.";
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return "حجم الملف كبير جدًا. الحد الأقصى 8 MB لكل ملف.";
+  }
+
+  return "";
+}
+
 export default function ApplyPage() {
   const [step, setStep] = useState<StepKey>("country");
   const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
@@ -75,6 +128,7 @@ export default function ApplyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [uploadingFileKey, setUploadingFileKey] = useState("");
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFileMeta>>({});
   const [contactForm, setContactForm] = useState<ContactForm>({
     email: "",
     phone: "",
@@ -163,14 +217,7 @@ export default function ApplyPage() {
     });
   }
 
-  async function uploadDocument(file: File) {
-    const buffer = await file.arrayBuffer();
-    const base64 = btoa(
-      Array.from(new Uint8Array(buffer))
-        .map((byte) => String.fromCharCode(byte))
-        .join(""),
-    );
-
+  async function uploadDocument(file: File, base64: string) {
     const response = await fetch(apiUrl("/api/uploads"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -195,18 +242,40 @@ export default function ApplyPage() {
     event: ChangeEvent<HTMLInputElement>,
   ) {
     const file = event.target.files?.[0];
+    const metaKey = `${applicantIndex}-${key}`;
     if (!file) {
       updateApplicantField(applicantIndex, key, "");
+      setUploadedFiles((current) => {
+        const next = { ...current };
+        delete next[metaKey];
+        return next;
+      });
       return;
     }
 
-    const uploadKey = `${applicantIndex}-${key}`;
-    setUploadingFileKey(uploadKey);
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
+    setUploadingFileKey(metaKey);
     setSubmitError("");
 
     try {
-      const storedName = await uploadDocument(file);
+      const dataUrl = await readFileAsDataUrl(file);
+      const base64 = dataUrl.split(",")[1] ?? "";
+      const storedName = await uploadDocument(file, base64);
       updateApplicantField(applicantIndex, key, storedName);
+      setUploadedFiles((current) => ({
+        ...current,
+        [metaKey]: {
+          name: file.name,
+          sizeLabel: formatFileSize(file.size),
+          previewUrl: file.type.startsWith("image/") ? dataUrl : null,
+          extension: normalizeFileExtension(file.name) || "file",
+        },
+      }));
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "تعذر رفع الملف.");
     } finally {
@@ -452,6 +521,7 @@ export default function ApplyPage() {
               onApplicantCountChange={setApplicantCount}
               onDocumentSelect={handleDocumentSelect}
               uploadingFileKey={uploadingFileKey}
+              uploadedFiles={uploadedFiles}
               onNext={handleAdvance}
             />
           </>
@@ -475,6 +545,7 @@ function WizardCard({
   onApplicantCountChange,
   onDocumentSelect,
   uploadingFileKey,
+  uploadedFiles,
   onNext,
 }: {
   step: Exclude<StepKey, "country" | "success">;
@@ -496,6 +567,7 @@ function WizardCard({
     event: ChangeEvent<HTMLInputElement>,
   ) => Promise<void>;
   uploadingFileKey: string;
+  uploadedFiles: Record<string, UploadedFileMeta>;
   onNext: (step: StepKey) => Promise<void>;
 }) {
   const config = {
@@ -634,17 +706,19 @@ function WizardCard({
                 <UploadCard
                   label="صورة الجواز"
                   icon="description"
-                  hint="PDF أو JPG أو PNG"
+                  hint="PDF أو JPG أو PNG حتى 8 MB"
                   selectedFile={applicant.passportDocumentName}
                   isUploading={uploadingFileKey === `${index}-passportDocumentName`}
+                  fileMeta={uploadedFiles[`${index}-passportDocumentName`] ?? null}
                   onFileSelect={(event) => onDocumentSelect(index, "passportDocumentName", event)}
                 />
                 <UploadCard
                   label="الصورة الشخصية"
                   icon="account_circle"
-                  hint="خلفية بيضاء"
+                  hint="JPG أو PNG حتى 8 MB"
                   selectedFile={applicant.personalPhotoName}
                   isUploading={uploadingFileKey === `${index}-personalPhotoName`}
+                  fileMeta={uploadedFiles[`${index}-personalPhotoName`] ?? null}
                   onFileSelect={(event) => onDocumentSelect(index, "personalPhotoName", event)}
                 />
               </div>
@@ -758,6 +832,7 @@ function UploadCard({
   hint,
   selectedFile,
   isUploading,
+  fileMeta,
   onFileSelect,
 }: {
   label: string;
@@ -765,17 +840,44 @@ function UploadCard({
   hint: string;
   selectedFile: string;
   isUploading: boolean;
+  fileMeta: UploadedFileMeta | null;
   onFileSelect: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
 }) {
   return (
     <div className="space-y-3">
       <label className="block text-sm font-bold tracking-tight text-[#574235]">{label}</label>
       <div className="group relative flex h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#dfc1af] bg-[#f6f3f2]/60 transition-colors hover:bg-[#f6f3f2]">
-        <input className="absolute inset-0 cursor-pointer opacity-0" type="file" onChange={onFileSelect} disabled={isUploading} />
-        <span className="material-symbols-outlined text-4xl text-[#574235]/40 transition-colors group-hover:text-[#964900]">{icon}</span>
+        <input
+          className="absolute inset-0 cursor-pointer opacity-0"
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+          onChange={onFileSelect}
+          disabled={isUploading}
+        />
+        {fileMeta?.previewUrl ? (
+          <img
+            src={fileMeta.previewUrl}
+            alt={fileMeta.name}
+            className="h-24 w-24 rounded-2xl object-cover shadow-inner"
+          />
+        ) : (
+          <span className="material-symbols-outlined text-4xl text-[#574235]/40 transition-colors group-hover:text-[#964900]">{icon}</span>
+        )}
         <div className="text-center">
-          <p className="text-sm font-bold text-[#1c1b1b]">{isUploading ? "جاري رفع الملف..." : selectedFile || "اضغطي للرفع أو اسحبي الملف هنا"}</p>
+          <p className="text-sm font-bold text-[#1c1b1b]">
+            {isUploading ? "جاري رفع الملف..." : fileMeta?.name || selectedFile || "اضغطي للرفع أو اسحبي الملف هنا"}
+          </p>
           <p className="mt-1 break-all px-4 text-xs text-[#574235]">{hint}</p>
+          {fileMeta ? (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#964900]">
+                {fileMeta.extension.replace(".", "").toUpperCase()}
+              </span>
+              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#574235]">
+                {fileMeta.sizeLabel}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

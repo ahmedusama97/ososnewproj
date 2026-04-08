@@ -7,6 +7,19 @@ function cleanFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120) || "document";
 }
 
+function normalizeFileExtension(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
+}
+
+const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+const ACCEPTED_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+]);
+const ACCEPTED_DOCUMENT_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
+
 async function readSupabaseError(response: Response) {
   const raw = await response.text();
   if (!raw) {
@@ -53,6 +66,26 @@ export async function POST(request: NextRequest) {
   }
 
   const binary = Buffer.from(base64, "base64");
+  const normalizedType = contentType.toLowerCase();
+  const extension = normalizeFileExtension(fileName);
+
+  if (
+    !ACCEPTED_DOCUMENT_TYPES.has(normalizedType) &&
+    !ACCEPTED_DOCUMENT_EXTENSIONS.has(extension)
+  ) {
+    return NextResponse.json(
+      { message: "Unsupported file type. Only PDF, JPG, and PNG are allowed." },
+      { status: 400 },
+    );
+  }
+
+  if (binary.byteLength > MAX_FILE_SIZE_BYTES) {
+    return NextResponse.json(
+      { message: "File size exceeds the 8 MB limit." },
+      { status: 413 },
+    );
+  }
+
   const objectPath = `requests/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}-${fileName}`;
   const uploadUrl = `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/${bucket}/${objectPath}`;
 

@@ -105,6 +105,19 @@ const NOTIFICATIONS_STORAGE_KEY = "visaflow_admin_notifications";
 const UNREAD_NOTIFICATIONS_STORAGE_KEY = "visaflow_admin_unread_notifications";
 const KNOWN_REQUESTS_STORAGE_KEY = "visaflow_admin_known_requests";
 
+function inferPreviewKind(path: string): "image" | "pdf" | "other" {
+  const lowerPath = path.toLowerCase();
+  if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg") || lowerPath.endsWith(".png")) {
+    return "image";
+  }
+
+  if (lowerPath.endsWith(".pdf")) {
+    return "pdf";
+  }
+
+  return "other";
+}
+
 function readStoredNotifications(): NotificationItem[] {
   if (typeof window === "undefined") {
     return [];
@@ -170,6 +183,7 @@ export default function AdminPage() {
   const [filePreview, setFilePreview] = useState<{
     url: string;
     label: string;
+    kind: "image" | "pdf" | "other";
   } | null>(null);
   const knownReferencesRef = useRef<Set<string>>(new Set(readStoredKnownRequests()));
   const [countryForm, setCountryForm] = useState({
@@ -586,6 +600,7 @@ export default function AdminPage() {
       setFilePreview({
         url: payload.signedUrl,
         label,
+        kind: inferPreviewKind(path),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر فتح الملف.");
@@ -611,6 +626,13 @@ export default function AdminPage() {
                 >
                   فتح خارجي
                 </a>
+                <a
+                  href={filePreview.url}
+                  download
+                  className="rounded-full border border-[#d5c3b5] px-4 py-2 text-xs font-bold text-[#7e5700]"
+                >
+                  تحميل
+                </a>
                 <button
                   type="button"
                   onClick={() => setFilePreview(null)}
@@ -620,11 +642,28 @@ export default function AdminPage() {
                 </button>
               </div>
             </header>
-            <iframe
-              title={filePreview.label}
-              src={filePreview.url}
-              className="h-full w-full flex-1 bg-[#f7f3f0]"
-            />
+            {filePreview.kind === "image" ? (
+              <div className="flex h-full flex-1 items-center justify-center bg-[#f7f3f0] p-4">
+                <img
+                  src={filePreview.url}
+                  alt={filePreview.label}
+                  className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
+                />
+              </div>
+            ) : filePreview.kind === "pdf" ? (
+              <iframe
+                title={filePreview.label}
+                src={filePreview.url}
+                className="h-full w-full flex-1 bg-[#f7f3f0]"
+              />
+            ) : (
+              <div className="flex h-full flex-1 flex-col items-center justify-center gap-4 bg-[#f7f3f0] p-6 text-center">
+                <span className="material-symbols-outlined text-6xl text-[#837567]">description</span>
+                <p className="max-w-md text-sm font-semibold text-[#574235]">
+                  هذا النوع من الملفات قد لا يدعم المعاينة داخل اللوحة. استخدم زر التحميل أو الفتح الخارجي.
+                </p>
+              </div>
+            )}
           </section>
         </div>
       ) : null}
