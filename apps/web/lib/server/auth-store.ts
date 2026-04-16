@@ -84,6 +84,17 @@ export async function assertAdminToken(authorization?: string | null) {
   return token === createSessionToken(settings);
 }
 
+export async function resolveAdminUsernameFromAuthorization(
+  authorization?: string | null,
+) {
+  const settings = await loadSettings();
+  const token = authorization?.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : authorization ?? "";
+
+  return token === createSessionToken(settings) ? settings.username : null;
+}
+
 export async function changeAdminPassword(
   authorization: string | null,
   currentPassword: string,

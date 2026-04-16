@@ -10,10 +10,19 @@ datasource db {
 
 enum VisaRequestStatus {
   draft
+  payment_pending
   submitted
+  waiting_documents
   in_review
+  embassy_processing
+  ready_for_delivery
   issued
   rejected
+}
+
+enum MissingDocumentStatus {
+  open
+  resolved
 }
 
 model Country {
@@ -52,14 +61,20 @@ model VisaRequest {
   country              Country           @relation(fields: [countryId], references: [id], onDelete: Restrict)
   userId               String?
   user                 User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignedTo           String?
+  assignedAt           DateTime?
 
   requestContext       RequestContext?
   applicants           VisaApplicant[]
   statusHistory        StatusHistoryEvent[]
+  internalNotes        InternalNote[]
+  missingDocuments     MissingDocumentRequest[]
+  auditTrail           RequestAuditEvent[]
 
   @@index([status, createdAt])
   @@index([countryId, createdAt])
   @@index([userId, createdAt])
+  @@index([assignedTo, createdAt])
 }
 
 model VisaApplicant {
@@ -100,6 +115,48 @@ model StatusHistoryEvent {
   fromStatus String?
   toStatus   String
   note       String
+  createdAt  DateTime    @default(now())
+
+  requestId  String
+  request    VisaRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model InternalNote {
+  id         String      @id @default(uuid())
+  author     String
+  body       String
+  createdAt  DateTime    @default(now())
+
+  requestId  String
+  request    VisaRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model MissingDocumentRequest {
+  id          String                @id @default(uuid())
+  title       String
+  details     String
+  status      MissingDocumentStatus @default(open)
+  requestedBy String
+  resolvedBy  String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  resolvedAt  DateTime?
+
+  requestId   String
+  request     VisaRequest           @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, status, createdAt])
+}
+
+model RequestAuditEvent {
+  id         String      @id @default(uuid())
+  action     String
+  actor      String
+  details    String?
   createdAt  DateTime    @default(now())
 
   requestId  String

@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiUrl } from "../../lib/api";
+import {
+  REQUEST_STATUS_LABELS,
+  REQUEST_STATUS_STYLES,
+} from "../../lib/request-status";
 
 type StatusEvent = {
   fromStatus: string | null;
@@ -36,6 +40,16 @@ type UserRequest = {
   createdAt: string;
   applicants: Applicant[];
   statusHistory: StatusEvent[];
+  missingDocuments: Array<{
+    id: string;
+    title: string;
+    details: string;
+    status: "open" | "resolved";
+    requestedBy: string;
+    resolvedBy?: string;
+    createdAt: string;
+    resolvedAt?: string;
+  }>;
 };
 
 type SessionUser = {
@@ -46,21 +60,8 @@ type SessionUser = {
   createdAt: string;
 };
 
-const statusLabels: Record<string, string> = {
-  draft: "مسودة",
-  submitted: "تم التقديم",
-  in_review: "قيد المراجعة",
-  issued: "تم الإصدار",
-  rejected: "مرفوض",
-};
-
-const statusStyles: Record<string, string> = {
-  draft: "bg-[#e8e8ea] text-[#474746]",
-  submitted: "bg-[#eef6d5] text-[#556500]",
-  in_review: "bg-[#fef3e2] text-[#7e5700]",
-  issued: "bg-[#d9f4d8] text-[#126c39]",
-  rejected: "bg-[#ffdad6] text-[#ba1a1a]",
-};
+const statusLabels: Record<string, string> = REQUEST_STATUS_LABELS;
+const statusStyles: Record<string, string> = REQUEST_STATUS_STYLES;
 
 type AccountTab = "requests" | "security" | "danger";
 
@@ -359,6 +360,34 @@ export default function AccountPage() {
                     <AccountField label="نوع التأشيرة" value={selectedRequest.visaType} />
                     <AccountField label="عدد المتقدمين" value={`${selectedRequest.applicants.length}`} />
                     <AccountField label="آخر حالة" value={statusLabels[selectedRequest.status] ?? selectedRequest.status} />
+                  </div>
+
+                  <div className="mt-8">
+                    <h3 className="mb-4 text-lg font-black text-[#1c1b1b]">المستندات المطلوبة حاليًا</h3>
+                    {(selectedRequest.missingDocuments ?? []).filter((item) => item.status === "open").length ? (
+                      <div className="space-y-3">
+                        {(selectedRequest.missingDocuments ?? [])
+                          .filter((item) => item.status === "open")
+                          .map((item) => (
+                            <div key={item.id} className="rounded-[24px] border border-[#f4c3a4] bg-[#fff8f1] p-5">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <strong className="text-[#1c1b1b]">{item.title}</strong>
+                                <span className="rounded-full bg-[#ffe4d1] px-3 py-1 text-xs font-black text-[#a04a00]">
+                                  مطلوب من العميل
+                                </span>
+                              </div>
+                              <p className="mt-3 leading-7 text-[#574235]">{item.details}</p>
+                              <p className="mt-3 text-xs text-[#8a6b57]">
+                                طُلب في {new Date(item.createdAt).toLocaleString("ar-SA")}
+                              </p>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-[24px] bg-[#fbf7f2] p-5 text-sm font-semibold text-[#574235]">
+                        لا توجد مستندات ناقصة مطلوبة منك حاليًا.
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-8">

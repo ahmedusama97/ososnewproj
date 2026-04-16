@@ -9,6 +9,12 @@ import {
   getAdminToken,
   setAdminSession,
 } from "../../lib/admin-auth";
+import {
+  REQUEST_STATUS_LABELS,
+  REQUEST_STATUS_OPTIONS,
+  REQUEST_STATUS_STYLES,
+  type RequestStatusValue,
+} from "../../lib/request-status";
 
 type StatusEvent = {
   fromStatus: string | null;
@@ -28,6 +34,32 @@ type Applicant = {
   personalPhotoName: string;
 };
 
+type InternalNote = {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+};
+
+type MissingDocument = {
+  id: string;
+  title: string;
+  details: string;
+  status: "open" | "resolved";
+  requestedBy: string;
+  resolvedBy?: string;
+  createdAt: string;
+  resolvedAt?: string;
+};
+
+type AuditEvent = {
+  id: string;
+  action: string;
+  actor: string;
+  details?: string;
+  createdAt: string;
+};
+
 type VisaRequest = {
   id: string;
   referenceCode: string;
@@ -41,10 +73,15 @@ type VisaRequest = {
   passportExpiryDate?: string;
   passportDocumentName?: string;
   personalPhotoName?: string;
-  status: string;
+  status: RequestStatusValue;
+  assignedTo?: string;
+  assignedAt?: string;
   createdAt: string;
   statusHistory?: StatusEvent[];
   applicants?: Applicant[];
+  internalNotes?: InternalNote[];
+  missingDocuments?: MissingDocument[];
+  auditTrail?: AuditEvent[];
   requestContext?: {
     channel?: string;
     userAgent?: string;
@@ -71,20 +108,6 @@ type NotificationItem = {
 };
 
 type AdminTab = "requests" | "countries" | "security" | "analytics";
-
-const statusOptions = [
-  { value: "submitted", label: "تم التقديم" },
-  { value: "in_review", label: "قيد المراجعة" },
-  { value: "issued", label: "تم الإصدار" },
-  { value: "rejected", label: "مرفوض" },
-];
-
-const statusStyles: Record<string, string> = {
-  submitted: "bg-[#eef6d5] text-[#556500]",
-  in_review: "bg-[#fef3e2] text-[#7e5700]",
-  issued: "bg-[#d9f4d8] text-[#126c39]",
-  rejected: "bg-[#ffdad6] text-[#ba1a1a]",
-};
 
 const accentOptions = [
   "from-[#964900] via-[#ffb787] to-[#126c39]",
@@ -161,15 +184,25 @@ export default function AdminPage() {
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [selectedReference, setSelectedReference] = useState("");
   const [selectedApplicantIndex, setSelectedApplicantIndex] = useState(0);
-  const [status, setStatus] = useState("submitted");
+  const [status, setStatus] = useState<RequestStatusValue>("submitted");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [assignee, setAssignee] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkAssignee, setBulkAssignee] = useState("");
+  const [selectedReferences, setSelectedReferences] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [loadingCountries, setLoadingCountries] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [addingCountry, setAddingCountry] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [creatingMissingDocument, setCreatingMissingDocument] = useState(false);
+  const [resolvingDocumentId, setResolvingDocumentId] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(
@@ -198,6 +231,10 @@ export default function AdminPage() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+  const [missingDocumentForm, setMissingDocumentForm] = useState({
+    title: "",
+    details: "",
   });
 
   function handleUnauthorized() {
@@ -338,6 +375,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (selectedRequest) {
       setStatus(selectedRequest.status);
+      setAssignee(selectedRequest.assignedTo ?? "");
       setSelectedApplicantIndex(0);
       setNote("");
       setSuccess("");
@@ -365,28 +403,34 @@ export default function AdminPage() {
 
   const filteredRequests = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return requests;
-    }
-
     return requests.filter((request) =>
-      [
-        request.referenceCode,
-        request.fullName,
-        request.email,
-        request.phone,
-        request.passportNumber,
-        request.country,
-        request.visaType,
-      ]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query)),
+      (query
+        ? [
+            request.referenceCode,
+            request.fullName,
+            request.email,
+            request.phone,
+            request.passportNumber,
+            request.country,
+            request.visaType,
+            request.assignedTo ?? "",
+          ]
+            .filter(Boolean)
+            .some((value) => value.toLowerCase().includes(query))
+        : true) &&
+      (statusFilter === "all" ? true : request.status === statusFilter) &&
+      (countryFilter === "all" ? true : request.country === countryFilter) &&
+      (assigneeFilter === "all"
+        ? true
+        : assigneeFilter === "unassigned"
+          ? !request.assignedTo
+          : request.assignedTo === assigneeFilter),
     );
-  }, [requests, searchQuery]);
+  }, [assigneeFilter, countryFilter, requests, searchQuery, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [assigneeFilter, countryFilter, searchQuery, statusFilter]);
 
   useEffect(() => {
     if (
@@ -397,6 +441,14 @@ export default function AdminPage() {
     }
   }, [filteredRequests, selectedReference]);
 
+  useEffect(() => {
+    setSelectedReferences((current) =>
+      current.filter((referenceCode) =>
+        requests.some((request) => request.referenceCode === referenceCode),
+      ),
+    );
+  }, [requests]);
+
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / REQUESTS_PER_PAGE));
   const currentRequestsPage = Math.min(currentPage, totalPages);
   const paginatedRequests = filteredRequests.slice(
@@ -404,10 +456,34 @@ export default function AdminPage() {
     currentRequestsPage * REQUESTS_PER_PAGE,
   );
 
+  const assigneeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          requests
+            .map((request) => request.assignedTo?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((left, right) => left.localeCompare(right, "ar")),
+    [requests],
+  );
+
+  const countryOptions = useMemo(
+    () =>
+      Array.from(new Set(requests.map((request) => request.country))).sort((left, right) =>
+        left.localeCompare(right, "ar"),
+      ),
+    [requests],
+  );
+
   const analytics = useMemo(() => {
     const totalRequests = requests.length;
+    const paymentPendingCount = requests.filter((request) => request.status === "payment_pending").length;
     const submittedCount = requests.filter((request) => request.status === "submitted").length;
+    const waitingDocumentsCount = requests.filter((request) => request.status === "waiting_documents").length;
     const inReviewCount = requests.filter((request) => request.status === "in_review").length;
+    const embassyProcessingCount = requests.filter((request) => request.status === "embassy_processing").length;
+    const readyForDeliveryCount = requests.filter((request) => request.status === "ready_for_delivery").length;
     const issuedCount = requests.filter((request) => request.status === "issued").length;
     const rejectedCount = requests.filter((request) => request.status === "rejected").length;
     const totalApplicants = requests.reduce(
@@ -423,8 +499,12 @@ export default function AdminPage() {
 
     return {
       totalRequests,
+      paymentPendingCount,
       submittedCount,
+      waitingDocumentsCount,
       inReviewCount,
+      embassyProcessingCount,
+      readyForDeliveryCount,
       issuedCount,
       rejectedCount,
       totalApplicants,
@@ -449,7 +529,8 @@ export default function AdminPage() {
           method: "PATCH",
           body: JSON.stringify({
             status,
-            note: note.trim() || "تم التحديث من لوحة الإدارة",
+            note: note.trim() || undefined,
+            assignedTo: assignee.trim() || null,
           }),
         },
       );
@@ -466,12 +547,167 @@ export default function AdminPage() {
       );
       setSelectedReference(updated.referenceCode);
       setStatus(updated.status);
+      setAssignee(updated.assignedTo ?? "");
       setNote("");
       setSuccess("تم حفظ التحديث وإضافته إلى سجل الطلب.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تحديث الطلب.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function toggleReferenceSelection(referenceCode: string) {
+    setSelectedReferences((current) =>
+      current.includes(referenceCode)
+        ? current.filter((item) => item !== referenceCode)
+        : [...current, referenceCode],
+    );
+  }
+
+  function toggleCurrentPageSelection() {
+    const currentPageReferences = paginatedRequests.map((request) => request.referenceCode);
+    const isEveryItemSelected =
+      currentPageReferences.length > 0 &&
+      currentPageReferences.every((referenceCode) =>
+        selectedReferences.includes(referenceCode),
+      );
+
+    setSelectedReferences((current) => {
+      if (isEveryItemSelected) {
+        return current.filter(
+          (referenceCode) => !currentPageReferences.includes(referenceCode),
+        );
+      }
+
+      return Array.from(new Set([...current, ...currentPageReferences]));
+    });
+  }
+
+  async function handleBulkUpdate() {
+    if (!selectedReferences.length) {
+      setError("حددي طلبًا واحدًا على الأقل لتنفيذ الإجراء الجماعي.");
+      return;
+    }
+
+    if (!bulkStatus && !bulkAssignee.trim()) {
+      setError("اختاري حالة أو مسئولا قبل تنفيذ التحديث الجماعي.");
+      return;
+    }
+
+    setBulkSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await authFetch("/api/admin/requests/bulk", {
+        method: "POST",
+        body: JSON.stringify({
+          referenceCodes: selectedReferences,
+          status: bulkStatus || undefined,
+          assignedTo: bulkAssignee.trim() || null,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.message ?? "تعذر تنفيذ التحديث الجماعي.");
+      }
+
+      setBulkStatus("");
+      setBulkAssignee("");
+      setSelectedReferences([]);
+      setSuccess(`تم تحديث ${payload.updatedCount ?? 0} طلب بنجاح.`);
+      await loadRequests();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر تنفيذ التحديث الجماعي.");
+    } finally {
+      setBulkSaving(false);
+    }
+  }
+
+  async function handleCreateMissingDocumentRequest() {
+    if (!selectedRequest) {
+      return;
+    }
+
+    if (!missingDocumentForm.title.trim() || !missingDocumentForm.details.trim()) {
+      setError("اكتبي عنوانًا ووصفًا للمستند المطلوب.");
+      return;
+    }
+
+    setCreatingMissingDocument(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await authFetch(
+        `/api/admin/requests/${selectedRequest.referenceCode}/missing-documents`,
+        {
+          method: "POST",
+          body: JSON.stringify(missingDocumentForm),
+        },
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.message ?? "تعذر إرسال طلب المستند الناقص.");
+      }
+
+      setRequests((current) =>
+        current.map((item) =>
+          item.referenceCode === payload.referenceCode ? payload : item,
+        ),
+      );
+      setSelectedReference(payload.referenceCode);
+      setMissingDocumentForm({ title: "", details: "" });
+      setSuccess("تمت إضافة طلب المستند الناقص وتحديث حالة الطلب.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "تعذر إرسال طلب المستند الناقص.",
+      );
+    } finally {
+      setCreatingMissingDocument(false);
+    }
+  }
+
+  async function handleResolveMissingDocument(documentId: string) {
+    if (!selectedRequest) {
+      return;
+    }
+
+    setResolvingDocumentId(documentId);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await authFetch(
+        `/api/admin/requests/${selectedRequest.referenceCode}/missing-documents/${documentId}`,
+        {
+          method: "PATCH",
+        },
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.message ?? "تعذر إغلاق طلب المستند.");
+      }
+
+      setRequests((current) =>
+        current.map((item) =>
+          item.referenceCode === payload.referenceCode ? payload : item,
+        ),
+      );
+      setSelectedReference(payload.referenceCode);
+      setSuccess("تم تحديث طلب المستند الناقص بنجاح.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "تعذر إغلاق طلب المستند.",
+      );
+    } finally {
+      setResolvingDocumentId("");
     }
   }
 
@@ -542,7 +778,7 @@ export default function AdminPage() {
       }
 
       const payload = await response.json();
-      setAdminSession(payload.token);
+      setAdminSession(payload.token, payload.username);
       setPasswordForm({
         currentPassword: "",
         newPassword: "",
@@ -838,27 +1074,134 @@ export default function AdminPage() {
                   <div className="rounded-xl bg-[#f7f3f0] px-3 py-2 text-sm font-bold text-[#7e5700]">{requests.length}</div>
                 </div>
 
+                <div className="space-y-3 border-b border-[#d5c3b5] p-4">
+                  <div className="grid gap-3">
+                    <select
+                      className="w-full rounded-xl border border-[#d5c3b5] bg-[#f7f3f0] px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                      value={statusFilter}
+                      onChange={(event) => setStatusFilter(event.target.value)}
+                    >
+                      <option value="all">كل الحالات</option>
+                      {REQUEST_STATUS_OPTIONS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-full rounded-xl border border-[#d5c3b5] bg-[#f7f3f0] px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                      value={countryFilter}
+                      onChange={(event) => setCountryFilter(event.target.value)}
+                    >
+                      <option value="all">كل الدول</option>
+                      {countryOptions.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-full rounded-xl border border-[#d5c3b5] bg-[#f7f3f0] px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                      value={assigneeFilter}
+                      onChange={(event) => setAssigneeFilter(event.target.value)}
+                    >
+                      <option value="all">كل المسؤولين</option>
+                      <option value="unassigned">غير مسندة</option>
+                      {assigneeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#eadbcc] bg-[#faf7f4] p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-sm font-black text-[#412100]">إجراءات جماعية</h4>
+                      <button
+                        type="button"
+                        onClick={toggleCurrentPageSelection}
+                        className="text-xs font-bold text-[#7e5700]"
+                      >
+                        {paginatedRequests.length &&
+                        paginatedRequests.every((request) =>
+                          selectedReferences.includes(request.referenceCode),
+                        )
+                          ? "إلغاء تحديد الصفحة"
+                          : "تحديد الصفحة"}
+                      </button>
+                    </div>
+                    <p className="mb-3 text-xs text-[#837567]">
+                      {selectedReferences.length} طلب محدد
+                    </p>
+                    <div className="grid gap-3">
+                      <select
+                        className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                        value={bulkStatus}
+                        onChange={(event) => setBulkStatus(event.target.value)}
+                      >
+                        <option value="">بدون تغيير حالة</option>
+                        {REQUEST_STATUS_OPTIONS.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                        placeholder="تعيين إلى مسئول (اختياري)"
+                        value={bulkAssignee}
+                        onChange={(event) => setBulkAssignee(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleBulkUpdate()}
+                        disabled={bulkSaving}
+                        className="rounded-xl bg-[#7e5700] px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+                      >
+                        {bulkSaving ? "جارٍ التنفيذ..." : "تنفيذ الإجراء الجماعي"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex-1 space-y-3 overflow-y-auto p-4">
                   {loadingRequests ? (
                     <div className="rounded-xl bg-[#f7f3f0] p-5 text-center text-sm font-semibold text-[#837567]">جاري تحميل الطلبات...</div>
                   ) : paginatedRequests.length ? (
                     paginatedRequests.map((request) => (
-                      <button
+                      <div
                         key={request.referenceCode}
-                        type="button"
-                        onClick={() => setSelectedReference(request.referenceCode)}
                         className={`w-full rounded-xl border p-4 text-right transition ${selectedReference === request.referenceCode ? "border-[#c26d00] bg-[#fef3e2]" : "border-[#d5c3b5] hover:border-[#c26d00]/50"}`}
                       >
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <span className="text-xs font-black text-[#7e5700]">#{request.referenceCode}</span>
-                          <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${statusStyles[request.status] ?? "bg-[#f1edea] text-[#1f1b16]"}`}>
-                            {statusOptions.find((item) => item.value === request.status)?.label ?? request.status}
-                          </span>
+                        <div className="mb-3 flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedReferences.includes(request.referenceCode)}
+                            onChange={() => toggleReferenceSelection(request.referenceCode)}
+                            className="mt-1 h-4 w-4 rounded border-[#d5c3b5] text-[#7e5700] focus:ring-[#7e5700]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReference(request.referenceCode)}
+                            className="flex-1 text-right"
+                          >
+                            <div className="mb-2 flex items-start justify-between gap-3">
+                              <span className="text-xs font-black text-[#7e5700]">#{request.referenceCode}</span>
+                              <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${REQUEST_STATUS_STYLES[request.status] ?? "bg-[#f1edea] text-[#1f1b16]"}`}>
+                                {REQUEST_STATUS_LABELS[request.status] ?? request.status}
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-black text-[#1f1b16]">{request.fullName}</h4>
+                            <p className="mt-1 text-xs text-[#837567]">{request.visaType} • {request.country}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-[#837567]">
+                              <span>{request.applicants?.length ?? 1} متقدم</span>
+                              <span>•</span>
+                              <span>{request.assignedTo ? `المسؤول: ${request.assignedTo}` : "غير مسندة"}</span>
+                            </div>
+                          </button>
                         </div>
-                        <h4 className="text-sm font-black text-[#1f1b16]">{request.fullName}</h4>
-                        <p className="mt-1 text-xs text-[#837567]">{request.visaType} • {request.country}</p>
-                        <p className="mt-2 text-[11px] font-semibold text-[#837567]">{request.applicants?.length ?? 1} متقدم</p>
-                      </button>
+                      </div>
                     ))
                   ) : (
                     <div className="rounded-xl bg-[#f7f3f0] p-5 text-center text-sm font-semibold text-[#837567]">لا توجد نتائج مطابقة.</div>
@@ -890,8 +1233,8 @@ export default function AdminPage() {
                           <div>
                             <p className="text-xs font-black uppercase tracking-[0.28em] text-[#c26d00]">Request Details</p>
                             <h2 className="mt-2 text-3xl font-black text-[#7e5700]">{selectedRequest.referenceCode}</h2>
-                            <span className={`mt-2 inline-flex rounded-md px-3 py-1 text-xs font-bold ${statusStyles[selectedRequest.status] ?? "bg-[#f1edea] text-[#1f1b16]"}`}>
-                              {statusOptions.find((item) => item.value === selectedRequest.status)?.label ?? selectedRequest.status}
+                            <span className={`mt-2 inline-flex rounded-md px-3 py-1 text-xs font-bold ${REQUEST_STATUS_STYLES[selectedRequest.status] ?? "bg-[#f1edea] text-[#1f1b16]"}`}>
+                              {REQUEST_STATUS_LABELS[selectedRequest.status] ?? selectedRequest.status}
                             </span>
                           </div>
                         </div>
@@ -923,6 +1266,15 @@ export default function AdminPage() {
                         <SummaryCard label="Country" value={selectedRequest.country} />
                         <SummaryCard label="Visa Type" value={selectedRequest.visaType} />
                         <SummaryCard label="Request Date" value={new Date(selectedRequest.createdAt).toLocaleDateString()} />
+                        <SummaryCard label="Assigned To" value={selectedRequest.assignedTo || "غير مسندة"} />
+                        <SummaryCard
+                          label="Open Missing Docs"
+                          value={String(
+                            (selectedRequest.missingDocuments ?? []).filter(
+                              (item) => item.status === "open",
+                            ).length,
+                          )}
+                        />
                       </div>
 
                       <div className="space-y-4">
@@ -963,11 +1315,27 @@ export default function AdminPage() {
                         <div className="mt-4 space-y-4">
                           <div>
                             <label className="mb-1 block text-[11px] font-bold text-[#837567]">الحالة الجديدة</label>
-                            <select className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20" value={status} onChange={(event) => setStatus(event.target.value)}>
-                              {statusOptions.map((item) => (
+                            <select className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20" value={status} onChange={(event) => setStatus(event.target.value as RequestStatusValue)}>
+                              {REQUEST_STATUS_OPTIONS.map((item) => (
                                 <option key={item.value} value={item.value}>{item.label}</option>
                               ))}
                             </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-[11px] font-bold text-[#837567]">المسؤول عن الطلب</label>
+                            <input
+                              className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                              placeholder="اسم الموظف أو الفريق"
+                              value={assignee}
+                              onChange={(event) => setAssignee(event.target.value)}
+                              list="admin-assignee-options"
+                            />
+                            <datalist id="admin-assignee-options">
+                              {assigneeOptions.map((option) => (
+                                <option key={option} value={option} />
+                              ))}
+                            </datalist>
                           </div>
 
                           <div>
@@ -978,6 +1346,91 @@ export default function AdminPage() {
                           <button type="button" onClick={() => void handleSaveStatus()} className="w-full rounded-xl bg-[#c26d00] py-3 text-sm font-bold text-white shadow-lg shadow-[#c26d00]/20 transition hover:brightness-110" disabled={saving}>
                             {saving ? "جاري الحفظ..." : "حفظ التحديث"}
                           </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <SectionTitle title="Missing Documents" />
+                        <div className="rounded-2xl border border-[#d5c3b5] bg-[#fffaf5] p-5">
+                          <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
+                            <input
+                              className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                              placeholder="عنوان المستند المطلوب"
+                              value={missingDocumentForm.title}
+                              onChange={(event) =>
+                                setMissingDocumentForm((current) => ({
+                                  ...current,
+                                  title: event.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="w-full rounded-xl border border-[#d5c3b5] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#c26d00]/20"
+                              placeholder="تفاصيل إضافية للعميل"
+                              value={missingDocumentForm.details}
+                              onChange={(event) =>
+                                setMissingDocumentForm((current) => ({
+                                  ...current,
+                                  details: event.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleCreateMissingDocumentRequest()}
+                            className="mt-4 rounded-xl bg-[#7e5700] px-5 py-3 text-sm font-bold text-white"
+                            disabled={creatingMissingDocument}
+                          >
+                            {creatingMissingDocument ? "جارٍ الإرسال..." : "طلب مستند ناقص"}
+                          </button>
+
+                          <div className="mt-4 space-y-3">
+                            {(selectedRequest.missingDocuments ?? []).length ? (
+                              (selectedRequest.missingDocuments ?? []).map((document) => (
+                                <div
+                                  key={document.id}
+                                  className="rounded-xl border border-[#d5c3b5] bg-white p-4"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                      <p className="font-black text-[#1f1b16]">{document.title}</p>
+                                      <p className="mt-1 text-sm text-[#837567]">{document.details}</p>
+                                    </div>
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                        document.status === "open"
+                                          ? "bg-[#ffe4d1] text-[#a04a00]"
+                                          : "bg-[#d9f4d8] text-[#126c39]"
+                                      }`}
+                                    >
+                                      {document.status === "open" ? "مفتوح" : "مغلق"}
+                                    </span>
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#837567]">
+                                    <span>طُلب بواسطة {document.requestedBy}</span>
+                                    <span>{new Date(document.createdAt).toLocaleString()}</span>
+                                  </div>
+                                  {document.status === "open" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleResolveMissingDocument(document.id)}
+                                      className="mt-4 rounded-lg border border-[#d5c3b5] px-4 py-2 text-xs font-bold text-[#7e5700]"
+                                      disabled={resolvingDocumentId === document.id}
+                                    >
+                                      {resolvingDocumentId === document.id
+                                        ? "جارٍ الإغلاق..."
+                                        : "تم استلام المستند"}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="rounded-xl bg-[#f7f3f0] p-4 text-center text-sm font-semibold text-[#837567]">
+                                لا توجد طلبات مستندات ناقصة لهذا الطلب.
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1001,13 +1454,60 @@ export default function AdminPage() {
                             <div key={`${event.createdAt}-${index}`} className="rounded-xl border border-[#d5c3b5] bg-[#fffaf5] p-4">
                               <div className="flex items-center justify-between gap-4">
                                 <strong className="text-sm font-bold text-[#1f1b16]">
-                                  {event.fromStatus ? `${event.fromStatus} -> ${event.toStatus}` : event.toStatus}
+                                  {event.fromStatus
+                                    ? `${REQUEST_STATUS_LABELS[event.fromStatus as RequestStatusValue] ?? event.fromStatus} -> ${REQUEST_STATUS_LABELS[event.toStatus as RequestStatusValue] ?? event.toStatus}`
+                                    : REQUEST_STATUS_LABELS[event.toStatus as RequestStatusValue] ?? event.toStatus}
                                 </strong>
                                 <span className="text-xs text-[#837567]">{new Date(event.createdAt).toLocaleString()}</span>
                               </div>
                               <p className="mt-2 text-sm text-[#837567]">{event.note}</p>
                             </div>
                           ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <SectionTitle title="Internal Notes" />
+                        <div className="space-y-3">
+                          {(selectedRequest.internalNotes ?? []).length ? (
+                            (selectedRequest.internalNotes ?? []).map((entry) => (
+                              <div key={entry.id} className="rounded-xl border border-[#d5c3b5] bg-[#fffaf5] p-4">
+                                <div className="flex items-center justify-between gap-4">
+                                  <strong className="text-sm font-bold text-[#1f1b16]">{entry.author}</strong>
+                                  <span className="text-xs text-[#837567]">{new Date(entry.createdAt).toLocaleString()}</span>
+                                </div>
+                                <p className="mt-2 text-sm text-[#837567]">{entry.body}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-xl bg-[#f7f3f0] p-4 text-center text-sm font-semibold text-[#837567]">
+                              لا توجد ملاحظات داخلية حتى الآن.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <SectionTitle title="Audit Trail" />
+                        <div className="space-y-3">
+                          {(selectedRequest.auditTrail ?? []).length ? (
+                            (selectedRequest.auditTrail ?? []).map((entry) => (
+                              <div key={entry.id} className="rounded-xl border border-[#d5c3b5] bg-[#fffaf5] p-4">
+                                <div className="flex items-center justify-between gap-4">
+                                  <strong className="text-sm font-bold text-[#1f1b16]">{entry.action}</strong>
+                                  <span className="text-xs text-[#837567]">{new Date(entry.createdAt).toLocaleString()}</span>
+                                </div>
+                                <p className="mt-2 text-sm text-[#837567]">
+                                  {entry.actor}
+                                  {entry.details ? ` • ${entry.details}` : ""}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-xl bg-[#f7f3f0] p-4 text-center text-sm font-semibold text-[#837567]">
+                              لا توجد أحداث تدقيق مسجلة بعد.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1096,7 +1596,11 @@ export default function AdminPage() {
             <div className="h-full overflow-y-auto pr-1">
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
               <AnalyticsCard title="إجمالي الطلبات" value={analytics.totalRequests} icon="assignment" accent="bg-[#fef3e2] text-[#c26d00]" />
+              <AnalyticsCard title="بانتظار الدفع" value={analytics.paymentPendingCount} icon="payments" accent="bg-[#fff3d1] text-[#8d5d00]" />
               <AnalyticsCard title="قيد المراجعة" value={analytics.inReviewCount} icon="hourglass_top" accent="bg-[#fff1d6] text-[#7e5700]" />
+              <AnalyticsCard title="بانتظار مستندات" value={analytics.waitingDocumentsCount} icon="upload_file" accent="bg-[#ffe4d1] text-[#a04a00]" />
+              <AnalyticsCard title="السفارة تعالج الطلب" value={analytics.embassyProcessingCount} icon="travel_explore" accent="bg-[#e3efff] text-[#194a8d]" />
+              <AnalyticsCard title="جاهز للتسليم" value={analytics.readyForDeliveryCount} icon="inventory_2" accent="bg-[#dff7ef] text-[#0c6b46]" />
               <AnalyticsCard title="مرفوض" value={analytics.rejectedCount} icon="cancel" accent="bg-[#ffefed] text-[#ba1a1a]" />
               <AnalyticsCard title="تم الإصدار" value={analytics.issuedCount} icon="verified" accent="bg-[#e8f7e5] text-[#126c39]" />
               <AnalyticsCard title="تم التقديم" value={analytics.submittedCount} icon="task_alt" accent="bg-[#eef6d5] text-[#556500]" />
@@ -1111,8 +1615,12 @@ export default function AdminPage() {
                 </div>
                 <StatusDonutChart
                   items={[
+                    { label: "بانتظار الدفع", value: analytics.paymentPendingCount, color: "#8d5d00" },
                     { label: "تم التقديم", value: analytics.submittedCount, color: "#556500" },
+                    { label: "بانتظار مستندات", value: analytics.waitingDocumentsCount, color: "#a04a00" },
                     { label: "قيد المراجعة", value: analytics.inReviewCount, color: "#c26d00" },
+                    { label: "السفارة تعالج الطلب", value: analytics.embassyProcessingCount, color: "#194a8d" },
+                    { label: "جاهز للتسليم", value: analytics.readyForDeliveryCount, color: "#0c6b46" },
                     { label: "تم الإصدار", value: analytics.issuedCount, color: "#126c39" },
                     { label: "مرفوض", value: analytics.rejectedCount, color: "#ba1a1a" },
                   ]}
@@ -1134,8 +1642,8 @@ export default function AdminPage() {
                         <p className="font-black text-[#1f1b16]">{request.referenceCode}</p>
                         <p className="mt-1 text-sm text-[#837567]">{request.fullName} • {request.country}</p>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusStyles[request.status] ?? "bg-[#f1edea] text-[#1f1b16]"}`}>
-                        {statusOptions.find((item) => item.value === request.status)?.label ?? request.status}
+                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${REQUEST_STATUS_STYLES[request.status] ?? "bg-[#f1edea] text-[#1f1b16]"}`}>
+                        {REQUEST_STATUS_LABELS[request.status] ?? request.status}
                       </span>
                     </div>
                   ))}

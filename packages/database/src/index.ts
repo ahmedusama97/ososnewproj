@@ -10,14 +10,22 @@ export {
   type AdminCredentialRecord,
 } from "./repositories/admin";
 export {
+  addInternalNoteInDb,
+  bulkUpdateRequestsInDb,
+  createMissingDocumentRequestInDb,
   createRequestInDb,
   claimRequestsByEmailInDb,
   listRequestsFromDb,
   listUserRequestsFromDb,
-  updateRequestStatusInDb,
+  resolveMissingDocumentRequestInDb,
+  updateRequestWorkflowInDb,
   type ApplicantRecord,
+  type InternalNoteRecord,
+  type MissingDocumentRecord,
   type RequestContextRecord,
+  type RequestAuditEventRecord,
   type VisaRequestRecord,
+  type VisaRequestStatusValue,
 } from "./repositories/requests";
 export {
   createUserInDb,

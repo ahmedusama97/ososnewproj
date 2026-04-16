@@ -4,23 +4,10 @@ import {
   getUserSessionFromToken,
   USER_TOKEN_COOKIE,
 } from "../../../lib/server/user-auth-store";
+import { normalizeRequestStatus } from "../../../lib/request-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function normalizeStatus(status: unknown) {
-  if (
-    status === "draft" ||
-    status === "submitted" ||
-    status === "in_review" ||
-    status === "issued" ||
-    status === "rejected"
-  ) {
-    return status;
-  }
-
-  return "submitted" as const;
-}
 
 export async function GET() {
   return NextResponse.json(await listRequests());
@@ -75,7 +62,7 @@ export async function POST(request: NextRequest) {
         ? String(payload.personalPhotoName)
         : undefined,
       travelDate: payload.travelDate ? String(payload.travelDate) : undefined,
-      status: normalizeStatus(payload.status),
+      status: normalizeRequestStatus(payload.status),
       userId: userSession?.user.id,
       applicants: applicants.map((applicant: Record<string, unknown>) => ({
         fullName: String(applicant.fullName ?? "").trim(),

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { apiUrl } from "../../lib/api";
+import { REQUEST_STATUS_LABELS } from "../../lib/request-status";
 
 type TrackResult = {
   referenceCode: string;
@@ -19,13 +20,7 @@ type TrackResult = {
   }>;
 };
 
-const statusLabels: Record<string, string> = {
-  draft: "مسودة",
-  submitted: "تم التقديم",
-  in_review: "قيد المراجعة",
-  issued: "تم الإصدار",
-  rejected: "مرفوض",
-};
+const statusLabels: Record<string, string> = REQUEST_STATUS_LABELS;
 
 export default function TrackPage() {
   const [referenceCode, setReferenceCode] = useState("");

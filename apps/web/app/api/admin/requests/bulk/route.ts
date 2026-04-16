@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveAdminUsernameFromAuthorization } from "../../../../../../lib/server/auth-store";
-import { updateRequestWorkflow } from "../../../../../../lib/server/requests-store";
-import { isRequestStatus } from "../../../../../../lib/request-status";
+import { resolveAdminUsernameFromAuthorization } from "../../../../../lib/server/auth-store";
+import { bulkUpdateRequests } from "../../../../../lib/server/requests-store";
+import { isRequestStatus } from "../../../../../lib/request-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ referenceCode: string }> },
-) {
+export async function POST(request: NextRequest) {
   const actor = await resolveAdminUsernameFromAuthorization(
     request.headers.get("authorization"),
   );
@@ -22,22 +19,30 @@ export async function PATCH(
   }
 
   const payload = await request.json();
+  const referenceCodes = Array.isArray(payload.referenceCodes)
+    ? payload.referenceCodes
+        .map((value: unknown) => String(value ?? "").trim())
+        .filter(Boolean)
+    : [];
   const status =
     payload.status === undefined
       ? undefined
       : isRequestStatus(payload.status)
         ? payload.status
         : null;
-  const note =
-    typeof payload.note === "string" && payload.note.trim()
-      ? payload.note.trim()
-      : undefined;
   const assignedTo =
     payload.assignedTo === undefined
       ? undefined
       : typeof payload.assignedTo === "string"
         ? payload.assignedTo
         : null;
+
+  if (!referenceCodes.length) {
+    return NextResponse.json(
+      { message: "Select at least one request first." },
+      { status: 400 },
+    );
+  }
 
   if (status === null) {
     return NextResponse.json(
@@ -46,24 +51,19 @@ export async function PATCH(
     );
   }
 
-  if (status === undefined && note === undefined && assignedTo === undefined) {
+  if (status === undefined && assignedTo === undefined) {
     return NextResponse.json(
-      { message: "No workflow changes were provided." },
+      { message: "No bulk update fields were provided." },
       { status: 400 },
     );
   }
 
-  const params = await context.params;
-  const updated = await updateRequestWorkflow(params.referenceCode, {
-    actor,
+  const updatedCount = await bulkUpdateRequests({
+    referenceCodes,
     status,
-    note,
     assignedTo,
+    actor,
   });
 
-  if (!updated) {
-    return NextResponse.json({ message: "Request not found." }, { status: 404 });
-  }
-
-  return NextResponse.json(updated);
+  return NextResponse.json({ updatedCount });
 }
