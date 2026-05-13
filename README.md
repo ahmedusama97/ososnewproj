@@ -83,6 +83,18 @@ SUPABASE_STORAGE_BUCKET=visa-documents
 
 Create a private Supabase Storage bucket named `visa-documents`. If these variables are not configured, the app keeps the filename fallback so the demo flow does not break.
 
+## Notifications
+
+Email notifications are optional and use Resend when configured. Add these variables to the web app environment:
+
+```bash
+RESEND_API_KEY=
+NOTIFICATION_FROM_EMAIL=VisaFlow <notifications@your-domain.com>
+ADMIN_NOTIFICATION_EMAILS=ops@example.com,support@example.com
+```
+
+If `RESEND_API_KEY` is missing, notification events are still recorded in the database with a `skipped` status so the request flow keeps working.
+
 ## Production Notes
 
 - Rotate the Supabase database password before live usage if it was shared during setup.

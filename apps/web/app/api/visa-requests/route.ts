@@ -5,6 +5,7 @@ import {
   USER_TOKEN_COOKIE,
 } from "../../../lib/server/user-auth-store";
 import { normalizeRequestStatus } from "../../../lib/request-status";
+import { notifyRequestCreated } from "../../../lib/server/notifications-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,6 +84,8 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get("user-agent") ?? "Unknown",
     },
   );
+
+  await notifyRequestCreated(record);
 
   return NextResponse.json(record, { status: 201 });
 }

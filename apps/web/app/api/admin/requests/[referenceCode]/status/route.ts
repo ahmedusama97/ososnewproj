@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveAdminUsernameFromAuthorization } from "../../../../../../lib/server/auth-store";
 import { updateRequestWorkflow } from "../../../../../../lib/server/requests-store";
 import { isRequestStatus } from "../../../../../../lib/request-status";
+import { notifyRequestStatusUpdated } from "../../../../../../lib/server/notifications-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,10 @@ export async function PATCH(
 
   if (!updated) {
     return NextResponse.json({ message: "Request not found." }, { status: 404 });
+  }
+
+  if (status !== undefined) {
+    await notifyRequestStatusUpdated(updated);
   }
 
   return NextResponse.json(updated);

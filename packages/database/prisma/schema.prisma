@@ -70,11 +70,34 @@ model VisaRequest {
   internalNotes        InternalNote[]
   missingDocuments     MissingDocumentRequest[]
   auditTrail           RequestAuditEvent[]
+  notifications        NotificationEvent[]
 
   @@index([status, createdAt])
   @@index([countryId, createdAt])
   @@index([userId, createdAt])
   @@index([assignedTo, createdAt])
+}
+
+model NotificationEvent {
+  id          String      @id @default(uuid())
+  event       String
+  channel     String
+  recipient   String
+  subject     String
+  body        String
+  status      String      @default("pending")
+  provider    String?
+  error       String?
+  metadata    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  requestId   String?
+  request     VisaRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@index([event, createdAt])
+  @@index([status, createdAt])
+  @@index([requestId, createdAt])
 }
 
 model VisaApplicant {

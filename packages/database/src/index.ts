@@ -41,3 +41,10 @@ export {
   type UserRecord,
   type UserSessionRecord,
 } from "./repositories/users";
+export {
+  createNotificationEventInDb,
+  listNotificationEventsFromDb,
+  updateNotificationEventStatusInDb,
+  type NotificationEventRecord,
+  type NotificationEventStatus,
+} from "./repositories/notifications";

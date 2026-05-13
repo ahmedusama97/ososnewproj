@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAdminUsernameFromAuthorization } from "../../../../../../lib/server/auth-store";
 import { createMissingDocumentRequest } from "../../../../../../lib/server/requests-store";
+import { notifyMissingDocumentRequested } from "../../../../../../lib/server/notifications-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,8 @@ export async function POST(
   if (!updated) {
     return NextResponse.json({ message: "Request not found." }, { status: 404 });
   }
+
+  await notifyMissingDocumentRequested(updated, { title, details });
 
   return NextResponse.json(updated, { status: 201 });
 }
