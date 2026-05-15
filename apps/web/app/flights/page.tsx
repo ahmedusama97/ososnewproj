@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function FlightsPage() {
   return (
-    <main className="min-h-screen bg-[#fcf9f8] px-5 py-10 text-[#1c1b1b]" dir="rtl">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-[#fcf9f8] px-5 py-8 text-[#1c1b1b]" dir="rtl">
+      <div className="mx-auto max-w-7xl">
         <nav className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-[#dfc1af] bg-white/90 px-5 py-4">
           <Link href="/home" className="text-lg font-black text-[#964900]">
             VisaFlow
@@ -37,19 +37,6 @@ export default function FlightsPage() {
             </Link>
           </div>
         </nav>
-
-        <section className="mb-8 rounded-[28px] border border-[#dfc1af] bg-white p-6 shadow-[0_24px_80px_rgba(150,73,0,0.08)] md:p-10">
-          <p className="mb-3 text-xs font-black uppercase tracking-[0.32em] text-[#964900]">
-            Flights
-          </p>
-          <h1 className="mb-4 text-3xl font-black tracking-tight md:text-5xl">
-            حجز الطيران
-          </h1>
-          <p className="max-w-3xl leading-8 text-[#574235]">
-            ابحث عن رحلات الطيران المناسبة لرحلتك من خلال محرك البحث المرتبط
-            بترافيل باي أوتس. نتائج الطيران والحجز يتم تشغيلها من مزود خارجي.
-          </p>
-        </section>
 
         <TravelpayoutsWidget />
       </div>
