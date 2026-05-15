@@ -16,8 +16,7 @@ const content = {
     switchHref: "/en",
     switchLabel: "English",
     nav: [
-      { label: "الامتثال", href: "/compliance" },
-      { label: "التتبع", href: "/track" },
+      { label: "الرئيسية", href: "/home" },
       { label: "الأسعار", href: "/pricing" },
       { label: "طيران", href: "/flights" },
     ],
@@ -86,8 +85,7 @@ const content = {
     switchHref: "/home",
     switchLabel: "العربية",
     nav: [
-      { label: "Compliance", href: "/compliance" },
-      { label: "Track", href: "/track" },
+      { label: "Home", href: "/en" },
       { label: "Pricing", href: "/pricing" },
       { label: "Flights", href: "/flights" },
     ],
