@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { PublicHeader } from "../../components/public-header";
 import { apiUrl } from "../../lib/api";
 import { visaDestinations } from "../../lib/visa-content";
 
@@ -411,20 +412,9 @@ export default function ApplyPage() {
 
   return (
     <div className="apply-shell min-h-screen">
-      <nav className="apply-nav">
-        <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between px-4 md:px-8">
-          <div className="text-2xl font-black tracking-tight text-[#964900]">VisaFlow</div>
-          <div className="hidden items-center gap-8 md:flex">
-            <Link href="/home" className="font-medium tracking-tight text-slate-600 transition-colors hover:text-[#964900]">Home</Link>
-          </div>
-          <div className="flex items-center gap-4 text-slate-600">
-            <span className="material-symbols-outlined cursor-pointer">language</span>
-            <button className="apply-primary px-6 py-2.5">ابدأ الطلب</button>
-          </div>
-        </div>
-      </nav>
+      <PublicHeader locale="ar" />
 
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-16 pt-32">
+      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-16 pt-10 md:pt-14">
         <section className="mb-10 text-center">
           <div className="apply-chip mx-auto mb-6 bg-[#9df2b2]/30 text-[#19713d]">
             <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: '"FILL" 1' }}>verified_user</span>
