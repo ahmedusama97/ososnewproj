@@ -38,7 +38,7 @@ export default function FlightsPage() {
           </div>
         </nav>
 
-        <section className="mb-8 rounded-[36px] border border-[#dfc1af] bg-white p-6 shadow-[0_24px_80px_rgba(150,73,0,0.08)] md:p-10">
+        <section className="mb-8 rounded-[28px] border border-[#dfc1af] bg-white p-6 shadow-[0_24px_80px_rgba(150,73,0,0.08)] md:p-10">
           <p className="mb-3 text-xs font-black uppercase tracking-[0.32em] text-[#964900]">
             Flights
           </p>
