@@ -23,6 +23,21 @@ body {
   animation: none !important;
 }
 
+.public-header-nav .public-header-flight-link {
+  font-size: 0 !important;
+}
+
+.public-header-nav .public-header-flight-link > :not(.public-header-flight-label) {
+  display: none !important;
+  animation: none !important;
+}
+
+.public-header-nav .public-header-flight-label {
+  display: inline !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
 .material-symbols-outlined {
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
   display: inline-block;

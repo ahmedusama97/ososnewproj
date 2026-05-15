@@ -128,7 +128,7 @@ export function PublicHeader({ locale = "ar" }: PublicHeaderProps) {
             className="public-header-link public-header-flight-link text-[#5f5e5e] transition hover:text-[#a83900]"
             href="/flights"
           >
-            {copy.flights}
+            <span className="public-header-flight-label">{copy.flights}</span>
           </Link>
         </nav>
 
