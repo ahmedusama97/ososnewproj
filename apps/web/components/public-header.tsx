@@ -8,6 +8,8 @@ type PublicHeaderProps = {
   locale?: "ar" | "en";
 };
 
+type HeaderLocale = "ar" | "en";
+
 type HeaderUser = {
   fullName?: string | null;
   email?: string | null;
@@ -37,9 +39,17 @@ const labels = {
 };
 
 export function PublicHeader({ locale = "ar" }: PublicHeaderProps) {
-  const copy = labels[locale];
+  const [activeLocale, setActiveLocale] = useState<HeaderLocale>(locale);
+  const copy = labels[activeLocale];
   const [user, setUser] = useState<HeaderUser | null>(null);
   const [sessionResolved, setSessionResolved] = useState(false);
+
+  useEffect(() => {
+    const savedLocale = window.localStorage.getItem("visaflow-public-locale");
+    if (savedLocale === "ar" || savedLocale === "en") {
+      setActiveLocale(savedLocale);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,31 +92,40 @@ export function PublicHeader({ locale = "ar" }: PublicHeaderProps) {
   const accountLabel =
     user?.fullName?.trim() || user?.email?.trim() || copy.account;
 
+  function toggleLocale() {
+    const nextLocale = activeLocale === "ar" ? "en" : "ar";
+    setActiveLocale(nextLocale);
+    window.localStorage.setItem("visaflow-public-locale", nextLocale);
+  }
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-black/5 bg-white/85 backdrop-blur-md">
+    <header
+      className="sticky top-0 z-50 w-full border-b border-black/5 bg-white/85 backdrop-blur-md"
+      dir={activeLocale === "ar" ? "rtl" : "ltr"}
+    >
       <div className="mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3 md:flex-nowrap md:px-8">
         <Link
-          href={locale === "ar" ? "/home" : "/en"}
+          href={activeLocale === "ar" ? "/home" : "/en"}
           className="shrink-0 text-2xl font-black tracking-tight text-[#a83900]"
         >
           VisaFlow
         </Link>
 
-        <nav className="order-3 flex w-full justify-center gap-5 overflow-x-auto border-t border-black/5 pt-3 text-sm font-semibold tracking-tight md:order-none md:w-auto md:gap-8 md:border-0 md:pt-0">
+        <nav className="public-header-nav order-3 flex w-full justify-center gap-5 overflow-x-auto border-t border-black/5 pt-3 text-sm font-semibold tracking-tight md:order-none md:w-auto md:gap-8 md:border-0 md:pt-0">
           <Link
-            className="text-[#5f5e5e] transition hover:text-[#a83900]"
-            href={locale === "ar" ? "/home" : "/en"}
+            className="public-header-link text-[#5f5e5e] transition hover:text-[#a83900]"
+            href={activeLocale === "ar" ? "/home" : "/en"}
           >
             {copy.home}
           </Link>
           <Link
-            className="text-[#5f5e5e] transition hover:text-[#a83900]"
+            className="public-header-link text-[#5f5e5e] transition hover:text-[#a83900]"
             href="/pricing"
           >
             {copy.pricing}
           </Link>
           <Link
-            className="text-[#5f5e5e] transition hover:text-[#a83900]"
+            className="public-header-link public-header-flight-link text-[#5f5e5e] transition hover:text-[#a83900]"
             href="/flights"
           >
             {copy.flights}
@@ -114,13 +133,15 @@ export function PublicHeader({ locale = "ar" }: PublicHeaderProps) {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href={copy.switchHref}
+          <button
+            type="button"
+            onClick={toggleLocale}
             className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-[#5f5e5e] transition hover:text-[#a83900] sm:inline-flex"
+            aria-label={copy.switchLabel}
           >
             <span className="material-symbols-outlined text-xl">language</span>
             {copy.switchLabel}
-          </Link>
+          </button>
           <Link
             href="/login"
             className={`text-sm font-semibold text-[#5f5e5e] transition hover:text-[#a83900] ${
