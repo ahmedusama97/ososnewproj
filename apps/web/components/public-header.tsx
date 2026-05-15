@@ -1,7 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { apiUrl } from "../lib/api";
 
 type PublicHeaderProps = {
   locale?: "ar" | "en";
+};
+
+type HeaderUser = {
+  fullName?: string | null;
+  email?: string | null;
 };
 
 const labels = {
@@ -11,6 +20,7 @@ const labels = {
     flights: "طيران",
     login: "دخول المستخدم",
     register: "إنشاء حساب",
+    account: "حسابي",
     switchHref: "/en",
     switchLabel: "English",
   },
@@ -20,6 +30,7 @@ const labels = {
     flights: "Flights",
     login: "User Login",
     register: "Create Account",
+    account: "My Account",
     switchHref: "/home",
     switchLabel: "العربية",
   },
@@ -27,6 +38,49 @@ const labels = {
 
 export function PublicHeader({ locale = "ar" }: PublicHeaderProps) {
   const copy = labels[locale];
+  const [user, setUser] = useState<HeaderUser | null>(null);
+  const [sessionResolved, setSessionResolved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSession() {
+      try {
+        const response = await fetch(apiUrl("/api/auth/session"), {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setUser(null);
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as { user?: HeaderUser | null };
+        if (!cancelled) {
+          setUser(payload.user ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSessionResolved(true);
+        }
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const accountLabel =
+    user?.fullName?.trim() || user?.email?.trim() || copy.account;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-black/5 bg-white/85 backdrop-blur-md">
@@ -69,16 +123,31 @@ export function PublicHeader({ locale = "ar" }: PublicHeaderProps) {
           </Link>
           <Link
             href="/login"
-            className="inline-flex text-sm font-semibold text-[#5f5e5e] transition hover:text-[#a83900]"
+            className={`text-sm font-semibold text-[#5f5e5e] transition hover:text-[#a83900] ${
+              user || !sessionResolved ? "hidden" : "inline-flex"
+            }`}
           >
             {copy.login}
           </Link>
-          <Link
-            href="/register"
-            className="rounded-xl bg-[#ff6b2b] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_32px_rgba(168,57,0,0.18)] transition hover:-translate-y-0.5 md:px-5"
-          >
-            {copy.register}
-          </Link>
+          {!sessionResolved ? (
+            <span className="h-10 w-24 animate-pulse rounded-xl bg-[#f2ebe6]" />
+          ) : user ? (
+            <Link
+              href="/account"
+              className="inline-flex max-w-[160px] items-center gap-2 truncate rounded-xl bg-[#fff3eb] px-4 py-2.5 text-sm font-bold text-[#a83900] shadow-[0_12px_32px_rgba(168,57,0,0.08)] transition hover:-translate-y-0.5 hover:bg-[#ffe8d8] md:max-w-[220px] md:px-5"
+              title={accountLabel}
+            >
+              <span className="material-symbols-outlined text-lg">account_circle</span>
+              <span className="truncate">{accountLabel}</span>
+            </Link>
+          ) : (
+            <Link
+              href="/register"
+              className="rounded-xl bg-[#ff6b2b] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_32px_rgba(168,57,0,0.18)] transition hover:-translate-y-0.5 md:px-5"
+            >
+              {copy.register}
+            </Link>
+          )}
         </div>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PublicHeader } from "../public-header";
 import { legalLinks, visaDestinations } from "../../lib/visa-content";
 
 type LandingPageProps = {
@@ -170,40 +171,9 @@ export function LandingPage({ locale }: LandingPageProps) {
       className="min-h-screen bg-[#f9f9fb] text-[#1a1c1d]"
       style={{ fontFamily: dictionary.fontFamily }}
     >
-      <header className="fixed top-0 z-50 w-full border-b border-black/5 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 md:px-8">
-          <Link href={locale === "ar" ? "/home" : "/en"} className="text-2xl font-black tracking-tight text-[#a83900]">
-            VisaFlow
-          </Link>
-          <nav className="hidden items-center gap-8 text-sm font-semibold tracking-tight md:flex">
-            {dictionary.nav.map((item) => (
-              <Link key={item.href} href={item.href} className="text-[#5f5e5e] transition hover:text-[#a83900]">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex items-center gap-3">
-            <Link
-              href={dictionary.switchHref}
-              className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-[#5f5e5e] transition hover:text-[#a83900]"
-            >
-              <span className="material-symbols-outlined text-xl">language</span>
-              {dictionary.switchLabel}
-            </Link>
-            <Link href="/login" className="hidden text-sm font-semibold text-[#5f5e5e] transition hover:text-[#a83900] sm:inline-flex">
-              {dictionary.loginLabel}
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-xl bg-[#ff6b2b] px-5 py-2.5 text-sm font-bold text-white shadow-[0_12px_32px_rgba(168,57,0,0.18)] transition hover:-translate-y-0.5"
-            >
-              {dictionary.registerLabel}
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader locale={locale} />
 
-      <main className="pt-20">
+      <main>
         <section className="mx-auto max-w-7xl overflow-hidden px-6 py-20 md:px-8 md:py-28">
           <div className="grid items-center gap-16 md:grid-cols-2">
             <div className="relative z-10">
